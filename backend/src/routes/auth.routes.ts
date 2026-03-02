@@ -1,8 +1,11 @@
 import { Router } from "express";
+import * as authController from "../controllers/auth.controller";
+import { requireAuth } from "../middleware/requireAuth";
 
 const router = Router();
 
-// TODO: add auth endpoints
-router.get("/me", (_req, res) => res.json({ message: "Auth routes placeholder" }));
+router.post("/register", authController.register);
+router.post("/login", authController.login);
+router.get("/me", requireAuth, authController.me);
 
 export default router;

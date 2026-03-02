@@ -1,3 +1,15 @@
+# Creative Hub
+
+A project management app for creative teams.
+
+## Setup
+
+1. Copy `backend/src/.env.example` to `backend/src/.env` and set `MONGO_URI` and `JWT_ACCESS_SECRET`
+2. Run the backend: `npm run dev:backend`
+3. Run the frontend: `npm run dev`
+
+---
+
 The MIT License (MIT)
 
 Copyright (c) 2015 Chris Kibble
