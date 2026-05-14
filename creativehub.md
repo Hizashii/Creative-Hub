@@ -1,4 +1,4 @@
-# Creative Hub — design alignment (Filllo-style)
+# Creative Hub - design alignment (Filllo-style)
 
 This document captures the UI direction for Creative Hub (aligned with the Stitch / Filllo dashboard reference discussed in your brief).
 
@@ -25,4 +25,4 @@ This document captures the UI direction for Creative Hub (aligned with the Stitc
 
 ## Stitch MCP (optional)
 
-If you use Google Stitch MCP, configure the server in Cursor MCP settings and store any API key in environment or Cursor secrets — **never commit keys to the repository**.
+If you use Google Stitch MCP, configure the server in Cursor MCP settings and store any API key in environment or Cursor secrets - **never commit keys to the repository**.

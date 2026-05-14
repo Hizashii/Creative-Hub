@@ -78,3 +78,16 @@ export const createAssetBody = z.object({
   filename: z.string().min(1),
   tags: z.array(z.string()).optional(),
 });
+
+export const createInvoiceBody = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  amount: z.number().nonnegative(),
+  currency: z.string().min(1).optional(),
+  status: z.enum(["draft", "sent", "paid", "void"]).optional(),
+  dueDate: z.coerce.date().optional().nullable(),
+  projectId: z.string().optional().nullable(),
+  clientUserId: z.string().optional().nullable(),
+});
+
+export const patchInvoiceBody = createInvoiceBody.partial();

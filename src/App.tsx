@@ -18,6 +18,14 @@ import { BriefEditorPage } from "./pages/shared/BriefEditorPage";
 import { BriefForm } from "./components/briefs/BriefForm";
 import { ProjectsBrowsePage } from "./pages/shared/ProjectsBrowsePage";
 import { ProjectWorkspacePage } from "./pages/shared/ProjectWorkspacePage";
+import { UpdatesPage } from "./pages/shared/UpdatesPage";
+import { CalendarPage } from "./pages/shared/CalendarPage";
+import { MyTasksPage } from "./pages/shared/MyTasksPage";
+import { DocumentsPage } from "./pages/shared/DocumentsPage";
+import { InvoicesPage } from "./pages/shared/InvoicesPage";
+import { LeadsPage } from "./pages/shared/LeadsPage";
+import { ClientsDirectoryPage } from "./pages/shared/ClientsDirectoryPage";
+import { CollaboratorsPage } from "./pages/shared/CollaboratorsPage";
 
 function AppRoutes() {
   return (
@@ -49,6 +57,10 @@ function AppRoutes() {
         <Route path="briefs/:id/edit" element={<BriefEditorPage />} />
         <Route path="projects" element={<ProjectsBrowsePage />} />
         <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
+        <Route path="updates" element={<UpdatesPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="invoices" element={<InvoicesPage />} />
+        <Route path="documents" element={<DocumentsPage />} />
       </Route>
 
       <Route
@@ -67,6 +79,14 @@ function AppRoutes() {
         <Route path="briefs/:id" element={<BriefDetailPage />} />
         <Route path="projects" element={<ProjectsBrowsePage />} />
         <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
+        <Route path="updates" element={<UpdatesPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="tasks" element={<MyTasksPage />} />
+        <Route path="teams" element={<CollaboratorsPage />} />
+        <Route path="leads" element={<LeadsPage />} />
+        <Route path="clients" element={<ClientsDirectoryPage />} />
+        <Route path="invoices" element={<InvoicesPage />} />
+        <Route path="documents" element={<DocumentsPage />} />
       </Route>
 
       <Route
@@ -86,6 +106,13 @@ function AppRoutes() {
         <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
         <Route path="briefs" element={<BriefsBrowsePage />} />
         <Route path="briefs/:id" element={<BriefDetailPage />} />
+        <Route path="updates" element={<UpdatesPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="tasks" element={<MyTasksPage />} />
+        <Route path="leads" element={<LeadsPage />} />
+        <Route path="clients" element={<ClientsDirectoryPage />} />
+        <Route path="invoices" element={<InvoicesPage />} />
+        <Route path="documents" element={<DocumentsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

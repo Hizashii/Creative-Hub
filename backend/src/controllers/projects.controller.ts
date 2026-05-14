@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { Types } from "mongoose";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ProjectModel } from "../models/projects.models";
@@ -10,16 +9,7 @@ import { AssetModel } from "../models/assets.models";
 import { FeedbackModel } from "../models/feedback.models";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { parseObjectId } from "../utils/mongoose";
-
-async function projectIdsForUser(userId: Types.ObjectId, role: string) {
-  if (role === "admin") {
-    return (await ProjectModel.find().distinct("_id")) as Types.ObjectId[];
-  }
-  const owned = await ProjectModel.find({ ownerId: userId }).distinct("_id");
-  const memberOf = await MemberModel.find({ userId }).distinct("projectId");
-  const set = new Set([...owned.map(String), ...memberOf.map(String)]);
-  return [...set].map((id) => new Types.ObjectId(id));
-}
+import { getAccessibleProjectIds } from "../services/accessibleProjects";
 
 function projectJSON(p: {
   _id: unknown;
@@ -46,7 +36,7 @@ function projectJSON(p: {
 export const listProjects = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
-  const ids = await projectIdsForUser(userId, req.user.role);
+  const ids = await getAccessibleProjectIds(userId, req.user.role);
   const items = await ProjectModel.find({ _id: { $in: ids } })
     .sort({ updatedAt: -1 })
     .lean();
