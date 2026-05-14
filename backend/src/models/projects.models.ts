@@ -1,14 +1,22 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const projectSchema = new Schema({
-    id: {type: String, required: true},
-    title: { type: String, required: true},
-    description: { type: String, required: true},
-    owner_id: { type: String, required: true},
-    created_at: { type: Date, default: Date.now },
-    updated_at: { type: Date, default: Date.now }
-})
+const projectStatuses = ["draft", "in_progress", "paused", "completed"] as const;
 
-export type Project = InferSchemaType<typeof projectSchema>;
+const projectSchema = new Schema(
+  {
+    title: { type: String, required: true },
+    description: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: projectStatuses,
+      default: "in_progress",
+    },
+    ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    briefId: { type: Schema.Types.ObjectId, ref: "Brief", required: false },
+  },
+  { timestamps: true }
+);
 
-export const ProjectModel = model<Project>("Project", projectSchema);
+export type ProjectDoc = InferSchemaType<typeof projectSchema>;
+export type ProjectStatus = (typeof projectStatuses)[number];
+export const ProjectModel = model<ProjectDoc>("Project", projectSchema);

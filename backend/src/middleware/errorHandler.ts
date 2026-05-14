@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../utils/ApiError";
 
-export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+// Express error middleware signature requires 4 arguments.
+export function errorHandler(err: unknown, _req: Request, res: Response, next: NextFunction) {
+  void next;
   const status = err instanceof ApiError ? err.statusCode : 500;
   const message = err instanceof ApiError ? err.message : "Internal server error";
 

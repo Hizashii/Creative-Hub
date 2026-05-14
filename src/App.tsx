@@ -1,20 +1,104 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Layout } from "./components/Layout";
-import { Projects } from "./pages/Projects";
-import "./App.css";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./context/AuthProvider";
+import { PublicLayout } from "./components/layout/PublicLayout";
+import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { RoleRoute } from "./components/RoleRoute";
+import { HomePage } from "./pages/public/HomePage";
+import { LoginPage } from "./pages/public/LoginPage";
+import { RegisterPage } from "./pages/public/RegisterPage";
+import { ClientDashboardPage } from "./pages/client/ClientDashboardPage";
+import { DesignerDashboardPage } from "./pages/designer/DesignerDashboardPage";
+import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { AdminProjectsPage } from "./pages/admin/AdminProjectsPage";
+import { BriefsBrowsePage } from "./pages/shared/BriefsBrowsePage";
+import { BriefDetailPage } from "./pages/shared/BriefDetailPage";
+import { BriefEditorPage } from "./pages/shared/BriefEditorPage";
+import { BriefForm } from "./components/briefs/BriefForm";
+import { ProjectsBrowsePage } from "./pages/shared/ProjectsBrowsePage";
+import { ProjectWorkspacePage } from "./pages/shared/ProjectWorkspacePage";
 
-function App() {
+function AppRoutes() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="projects" element={<Projects />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      {/* Auth pages - standalone, no shell */}
+      <Route path="login" element={<LoginPage />} />
+      <Route path="register" element={<RegisterPage />} />
+
+      {/* Public marketing pages */}
+      <Route element={<PublicLayout />}>
+        <Route index element={<HomePage />} />
+      </Route>
+
+      <Route
+        path="client"
+        element={
+          <ProtectedRoute>
+            <RoleRoute roles={["client"]}>
+              <DashboardLayout area="client" />
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<ClientDashboardPage />} />
+        <Route path="briefs" element={<BriefsBrowsePage />} />
+        <Route path="briefs/new" element={<BriefForm />} />
+        <Route path="briefs/:id" element={<BriefDetailPage />} />
+        <Route path="briefs/:id/edit" element={<BriefEditorPage />} />
+        <Route path="projects" element={<ProjectsBrowsePage />} />
+        <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
+      </Route>
+
+      <Route
+        path="designer"
+        element={
+          <ProtectedRoute>
+            <RoleRoute roles={["designer"]}>
+              <DashboardLayout area="designer" />
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<DesignerDashboardPage />} />
+        <Route path="briefs" element={<BriefsBrowsePage />} />
+        <Route path="briefs/:id" element={<BriefDetailPage />} />
+        <Route path="projects" element={<ProjectsBrowsePage />} />
+        <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
+      </Route>
+
+      <Route
+        path="admin"
+        element={
+          <ProtectedRoute>
+            <RoleRoute roles={["admin"]}>
+              <DashboardLayout area="admin" />
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="users" element={<AdminUsersPage />} />
+        <Route path="projects" element={<AdminProjectsPage />} />
+        <Route path="projects/:projectId" element={<ProjectWorkspacePage />} />
+        <Route path="briefs" element={<BriefsBrowsePage />} />
+        <Route path="briefs/:id" element={<BriefDetailPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

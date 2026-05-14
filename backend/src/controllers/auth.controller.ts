@@ -1,61 +1,59 @@
 import type { Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import type { z } from "zod";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { UserModel } from "../models/user.models";
+import type { AppUserRole } from "../types/roles";
+import { registerBody } from "../schemas/validation";
 
-export const register = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
-  if (!email || !password || !name) throw new ApiError(400, "Email, password and name required");
+type RegisterInput = z.infer<typeof registerBody>;
 
-  const existing = await UserModel.findOne({ email });
-  if (existing) throw new ApiError(400, "Email already registered");
+function userPublic(u: { _id: unknown; email: string; name: string; role: AppUserRole }) {
+  return { id: String(u._id), email: u.email, name: u.name, role: u.role };
+}
 
-  const user = await UserModel.create({
-    id: crypto.randomUUID(),
-    email,
-    password,
-    name,
-    role: "member",
-  });
-
+function signToken(user: { _id: unknown; role: AppUserRole }) {
   const secret = process.env.JWT_ACCESS_SECRET;
   if (!secret) throw new ApiError(500, "JWT_ACCESS_SECRET not set");
+  return jwt.sign({ sub: String(user._id), role: user.role }, secret, { expiresIn: "7d" });
+}
 
-  const token = jwt.sign(
-    { sub: user.id, role: user.role },
-    secret,
-    { expiresIn: "7d" }
-  );
+export const register = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password, name, role } = req.body as RegisterInput;
 
-  res.status(201).json({
-    token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+  const exists = await UserModel.findOne({ email: email.toLowerCase() });
+  if (exists) throw new ApiError(409, "Email already registered");
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await UserModel.create({
+    email: email.toLowerCase(),
+    passwordHash,
+    name,
+    role: role ?? "client",
   });
+
+  const token = signToken(user);
+  res.status(201).json({ token, user: userPublic(user) });
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  if (!email || !password) throw new ApiError(400, "Email and password required");
+  const { email, password } = req.body as { email: string; password: string };
 
-  const user = await UserModel.findOne({ email }).lean();
-  if (!user || user.password !== password) throw new ApiError(401, "Invalid credentials");
+  const user = await UserModel.findOne({ email: email.toLowerCase() });
+  if (!user) throw new ApiError(401, "Invalid email or password");
 
-  const secret = process.env.JWT_ACCESS_SECRET;
-  if (!secret) throw new ApiError(500, "JWT_ACCESS_SECRET not set");
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) throw new ApiError(401, "Invalid email or password");
 
-  const token = jwt.sign(
-    { sub: user.id, role: user.role },
-    secret,
-    { expiresIn: "7d" }
-  );
-
-  res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  const token = signToken(user);
+  res.json({ token, user: userPublic(user) });
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  const user = await UserModel.findOne({ id: req.user.id }).select("-password").lean();
+  const user = await UserModel.findById(req.user.id).lean();
   if (!user) throw new ApiError(404, "User not found");
-  res.json(user);
+  res.json(userPublic(user as { _id: unknown; email: string; name: string; role: AppUserRole }));
 });

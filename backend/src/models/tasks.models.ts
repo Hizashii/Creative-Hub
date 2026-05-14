@@ -1,19 +1,18 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const taskSchema = new Schema ({
-    id: {type: String, required: true},
-    project_id: { type: String, required: true},
-    column_id: { type: String, required: true},
-    title: { type: String, required: true},
-    description: { type: String, required: true},
-    assignee_id: { type: String, required: false},
-    due_date: { type: Date, required: false},
-    labels: { type: [String], required: false },
-    sort_order: { type: [Number], required: true},
-    created_at: { type: Date, default: Date.now },
-    updated_at: { type: Date, default: Date.now }
-})
+const taskSchema = new Schema(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true, index: true },
+    columnId: { type: Schema.Types.ObjectId, ref: "Column", required: true, index: true },
+    title: { type: String, required: true },
+    description: { type: String, default: "" },
+    assigneeId: { type: Schema.Types.ObjectId, ref: "User", required: false },
+    dueDate: { type: Date, required: false },
+    order: { type: Number, default: 0 },
+    labels: { type: [String], default: [] },
+  },
+  { timestamps: true }
+);
 
-export type Task = InferSchemaType<typeof taskSchema>;
-
-export const TaskModel = model<Task>("Task", taskSchema);
+export type TaskDoc = InferSchemaType<typeof taskSchema>;
+export const TaskModel = model<TaskDoc>("Task", taskSchema);

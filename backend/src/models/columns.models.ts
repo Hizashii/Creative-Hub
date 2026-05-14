@@ -1,14 +1,13 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const columnSchema = new Schema ({
-    id: {type: String, required: true},
-    project_id: { type: String, required: true},
-    title: { type: String, required: true},
-    sort_order: { type: [Number], required: true},
-    created_at: { type: Date, default: Date.now },
-    updated_at: { type: Date, default: Date.now }
-})
+const columnSchema = new Schema(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true, index: true },
+    title: { type: String, required: true },
+    order: { type: Number, required: true, default: 0 },
+  },
+  { timestamps: true }
+);
 
-export type Column = InferSchemaType<typeof columnSchema>;
-
-export const ColumnModel = model<Column>("Column", columnSchema);
+export type ColumnDoc = InferSchemaType<typeof columnSchema>;
+export const ColumnModel = model<ColumnDoc>("Column", columnSchema);

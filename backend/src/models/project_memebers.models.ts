@@ -1,12 +1,17 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const membersSchema = new Schema({
-  project_id: { type: String, required: true },
-  user_id: { type: String, required: true },
-  member_role: { type: String, required: true },
-  joined_at: { type: Date, default: Date.now },
-})
+const memberRoles = ["lead", "member", "viewer"] as const;
 
-export type Member = InferSchemaType<typeof membersSchema>;
+const membersSchema = new Schema(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    memberRole: { type: String, enum: memberRoles, default: "member" },
+  },
+  { timestamps: true }
+);
 
-export const MemberModel = model<Member>("Member", membersSchema);
+membersSchema.index({ projectId: 1, userId: 1 }, { unique: true });
+
+export type MemberDoc = InferSchemaType<typeof membersSchema>;
+export const MemberModel = model<MemberDoc>("Member", membersSchema);

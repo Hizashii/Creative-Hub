@@ -1,13 +1,24 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError";
+import type { AppUserRole } from "../types/roles";
+import { skipAuthBypass } from "../utils/skipAuthBypass";
 
 type JwtPayload = {
-  sub: string; // user id
-  role: "admin" | "member" | "viewer";
+  sub: string;
+  role: AppUserRole;
 };
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+  if (skipAuthBypass()) {
+    const id = process.env.DEV_USER_ID;
+    if (!id) {
+      return next(new ApiError(500, "SKIP_AUTH is true but DEV_USER_ID is not set"));
+    }
+    req.user = { id, role: (process.env.DEV_USER_ROLE as AppUserRole) || "admin" };
+    return next();
+  }
+
   const header = req.headers.authorization;
 
   if (!header?.startsWith("Bearer ")) {
