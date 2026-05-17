@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import type { CalendarResponse } from "../../types/dashboard";
 import { useDashboardNav } from "../../hooks/useDashboardNav";
+import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
+import { formatDate } from "../../utils/format";
 
 function dayKey(iso: string) {
   try {
@@ -12,14 +14,13 @@ function dayKey(iso: string) {
   }
 }
 
-function formatDay(key: string) {
-  const d = new Date(`${key}T12:00:00`);
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-}
-
 type CalEvent =
   | { source: "task"; id: string; title: string; at: string; projectId: string; projectTitle: string }
   | { source: "brief"; id: string; title: string; at: string; companyName: string; status: string };
+
+function eventTone(source: CalEvent["source"]) {
+  return source === "task" ? "primary" : "tertiary";
+}
 
 export function CalendarPage() {
   const { base } = useDashboardNav();
@@ -45,9 +46,9 @@ export function CalendarPage() {
     };
   }, []);
 
-  const grouped = useMemo(() => {
-    if (!data) return new Map<string, CalEvent[]>();
-    const events: CalEvent[] = [
+  const events = useMemo<CalEvent[]>(() => {
+    if (!data) return [];
+    return [
       ...data.tasks.map((t) => ({
         source: "task" as const,
         id: t.id,
@@ -65,83 +66,172 @@ export function CalendarPage() {
         status: b.status,
       })),
     ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-
-    const map = new Map<string, CalEvent[]>();
-    for (const e of events) {
-      const k = dayKey(e.at);
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(e);
-    }
-    return map;
   }, [data]);
 
-  const sortedKeys = useMemo(() => [...grouped.keys()].sort(), [grouped]);
+  const grouped = useMemo(() => {
+    const map = new Map<string, CalEvent[]>();
+    for (const event of events) {
+      const key = dayKey(event.at);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(event);
+    }
+    return map;
+  }, [events]);
+
+  const monthDate = useMemo(() => (events[0] ? new Date(events[0].at) : new Date()), [events]);
+  const monthLabel = monthDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const calendarCells = useMemo(() => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const first = new Date(year, month, 1);
+    const start = new Date(year, month, 1 - first.getDay());
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      const key = date.toISOString().slice(0, 10);
+      return {
+        key,
+        date,
+        inMonth: date.getMonth() === month,
+        items: grouped.get(key) ?? [],
+      };
+    });
+  }, [grouped, monthDate]);
+
+  const upcoming = events.slice(0, 6);
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-[32px] font-bold text-on-surface tracking-tight">Calendar</h1>
-        <p className="text-sm text-on-surface-variant mt-1">
-          Task due dates and brief deadlines in one timeline.
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl">
+      <PageHeader
+        eyebrow="Schedule"
+        title={monthLabel}
+        description={`You have ${events.length} dated tasks and brief deadlines in this workspace.`}
+        actions={
+          <>
+            <div className="inline-flex rounded-lg bg-surface-container-low p-1">
+              {["Month", "Week", "Day"].map((view, index) => (
+                <button
+                  key={view}
+                  type="button"
+                  className={`rounded-md px-4 py-2 text-label-md font-bold transition-colors ${
+                    index === 0
+                      ? "bg-surface-container-lowest text-primary shadow-sm"
+                      : "text-on-surface-variant hover:bg-surface-container-high"
+                  }`}
+                >
+                  {view}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              Add event
+            </button>
+          </>
+        }
+      />
 
-      {loading && <p className="text-sm text-on-surface-variant">Loading…</p>}
+      {loading && <p className="text-body-sm text-on-surface-variant">Loading...</p>}
 
-      {!loading && sortedKeys.length === 0 && (
-        <div className="rounded-xl border border-outline-variant bg-surface-container-lowest p-8 text-center text-sm text-on-surface-variant">
-          No dated items yet. Add due dates to tasks or submit briefs with deadlines.
-        </div>
+      {!loading && events.length === 0 && (
+        <EmptyState
+          icon="event_busy"
+          title="No dated items yet"
+          description="Add due dates to project tasks or submit briefs with deadlines to populate this schedule."
+        />
       )}
 
-      <div className="space-y-6">
-        {sortedKeys.map((key) => (
-          <section key={key}>
-            <h2 className="text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-3">
-              {formatDay(key)}
-            </h2>
-            <ul className="space-y-2">
-              {grouped.get(key)!.map((ev) => (
-                <li
-                  key={`${ev.source}-${ev.id}`}
-                  className="rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+      {!loading && events.length > 0 && (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <SurfaceCard className="overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-outline-variant bg-surface-container-low text-center text-label-sm font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div key={day} className="px-2 py-3">
+                  {day}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {calendarCells.map((cell) => (
+                <div
+                  key={cell.key}
+                  className={`min-h-[118px] border-b border-r border-outline-variant p-2 ${
+                    cell.inMonth ? "bg-surface-container-lowest" : "bg-surface-container-low/50 text-outline"
+                  }`}
                 >
-                  <div>
-                    {ev.source === "brief" ? (
-                      <Link
-                        to={`${base}/briefs/${ev.id}`}
-                        className="text-sm font-semibold text-on-surface hover:text-primary"
-                      >
-                        {ev.title}
-                      </Link>
-                    ) : (
-                      <p className="text-sm font-semibold text-on-surface">{ev.title}</p>
-                    )}
-                    {ev.source === "task" && (
-                      <Link
-                        to={`${base}/projects/${ev.projectId}`}
-                        className="text-xs text-primary font-medium hover:underline"
-                      >
-                        {ev.projectTitle}
-                      </Link>
-                    )}
-                    {ev.source === "brief" && (
-                      <div className="flex flex-wrap gap-x-2 text-xs text-on-surface-variant mt-0.5">
-                        <span>{ev.companyName}</span>
-                        <span>·</span>
-                        <span>{ev.status}</span>
-                      </div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-label-md font-bold">{cell.date.getDate()}</span>
+                    {cell.items.length > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-primary" aria-label={`${cell.items.length} events`} />
                     )}
                   </div>
-                  <span className="text-xs font-medium text-outline shrink-0">
-                    {ev.source === "task" ? "Task due" : "Brief deadline"}
-                  </span>
-                </li>
+                  <div className="space-y-1">
+                    {cell.items.slice(0, 2).map((event) => (
+                      <Link
+                        key={`${event.source}-${event.id}`}
+                        to={event.source === "task" ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
+                        className="block truncate rounded bg-surface-container px-2 py-1 text-[11px] font-semibold text-on-surface no-underline hover:bg-primary-container hover:text-on-primary-container"
+                      >
+                        {event.title}
+                      </Link>
+                    ))}
+                    {cell.items.length > 2 && (
+                      <span className="block text-[11px] font-semibold text-outline">+{cell.items.length - 2} more</span>
+                    )}
+                  </div>
+                </div>
               ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+            </div>
+          </SurfaceCard>
+
+          <aside className="space-y-6">
+            <SurfaceCard className="p-5">
+              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Upcoming events</h2>
+              <ul className="space-y-4">
+                {upcoming.map((event) => (
+                  <li key={`${event.source}-${event.id}`} className="border-b border-outline-variant pb-4 last:border-b-0 last:pb-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <StatusPill tone={eventTone(event.source)}>{event.source === "task" ? "Task" : "Brief"}</StatusPill>
+                      <span className="text-label-sm text-outline">{formatDate(event.at)}</span>
+                    </div>
+                    <Link
+                      to={event.source === "task" ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
+                      className="font-semibold text-on-surface no-underline hover:text-primary"
+                    >
+                      {event.title}
+                    </Link>
+                    <p className="mt-1 text-body-sm text-on-surface-variant">
+                      {event.source === "task" ? event.projectTitle : `${event.companyName} / ${event.status}`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </SurfaceCard>
+
+            <SurfaceCard className="p-5">
+              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Filters</h2>
+              <div className="space-y-3">
+                {[
+                  { label: "Tasks", count: data?.tasks.length ?? 0, color: "bg-primary" },
+                  { label: "Briefs", count: data?.briefs.length ?? 0, color: "bg-tertiary-fixed-dim" },
+                ].map((filter) => (
+                  <div key={filter.label} className="flex items-center justify-between rounded-lg border border-outline-variant p-3">
+                    <span className="flex items-center gap-3 text-body-sm font-semibold text-on-surface">
+                      <span className={`h-3 w-3 rounded-full ${filter.color}`} />
+                      {filter.label}
+                    </span>
+                    <span className="text-label-md text-on-surface-variant">{filter.count}</span>
+                  </div>
+                ))}
+              </div>
+            </SurfaceCard>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { ApiRequestError } from "../../api/client";
+import { AuthMediaPanel } from "./AuthMediaPanel";
 
 const home = (role: string) =>
   role === "admin" ? "/admin/dashboard" : role === "designer" ? "/designer/dashboard" : "/client/dashboard";
@@ -114,25 +115,7 @@ export function LoginForm() {
         </div>
       </main>
 
-      {/* Right: Hero */}
-      <aside className="hidden lg:flex lg:w-1/2 relative bg-primary-container overflow-hidden items-end">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/80 via-primary-container to-surface-tint" />
-        <div className="relative z-10 p-16">
-          <span className="material-symbols-outlined text-secondary-fixed text-[40px] mb-4 block" style={{ fontVariationSettings: "'FILL' 1" }}>format_quote</span>
-          <p className="text-[28px] font-bold leading-tight mb-6 text-on-primary">
-            "Creative Hub transformed how we manage our agency. The streamlined workflow is unmatched."
-          </p>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-surface-container-high border-2 border-secondary-fixed flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-surface-variant">person</span>
-            </div>
-            <div>
-              <p className="font-semibold text-on-primary">Sarah Jenkins</p>
-              <p className="text-sm text-inverse-primary opacity-90">Design Director, Studio Alpha</p>
-            </div>
-          </div>
-        </div>
-      </aside>
+      <AuthMediaPanel />
     </div>
   );
 }

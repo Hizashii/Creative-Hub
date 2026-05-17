@@ -2,19 +2,26 @@ import { useEffect, useState } from "react";
 import { api, ApiRequestError } from "../../api/client";
 import type { AdminUser } from "../../types/domain";
 import type { UserRole } from "../../types/roles";
+import { MetricCard, PageHeader, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
+import { getInitials, titleize } from "../../utils/format";
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    try { setUsers(await api<AdminUser[]>("/admin/users")); }
-    catch { setUsers([]); }
+    try {
+      setUsers(await api<AdminUser[]>("/admin/users"));
+    } catch {
+      setUsers([]);
+    }
   }
 
   useEffect(() => {
-    const h = window.setTimeout(() => { void refresh(); }, 0);
-    return () => window.clearTimeout(h);
+    const handle = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => window.clearTimeout(handle);
   }, []);
 
   async function updateRole(id: string, role: UserRole) {
@@ -22,8 +29,8 @@ export function AdminUsersPage() {
     try {
       await api(`/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) });
       await refresh();
-    } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : "Update failed");
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Update failed");
     }
   }
 
@@ -33,56 +40,82 @@ export function AdminUsersPage() {
     try {
       await api(`/admin/users/${id}`, { method: "DELETE" });
       await refresh();
-    } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : "Delete failed");
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Delete failed");
     }
   }
 
+  const admins = users.filter((user) => user.role === "admin").length;
+  const designers = users.filter((user) => user.role === "designer").length;
+  const clients = users.filter((user) => user.role === "client").length;
+
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-[32px] font-bold text-on-surface tracking-tight">Users & team</h1>
-          <p className="text-sm text-on-surface-variant mt-1">Control access, promote designers, and keep the roster aligned with delivery needs.</p>
-        </div>
+    <div className="mx-auto max-w-7xl">
+      <PageHeader
+        eyebrow="Access"
+        title="Users and teams"
+        description="Control roles, promote designers, and keep the roster aligned with delivery needs."
+        actions={
+          <button
+            type="button"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
+          >
+            <span className="material-symbols-outlined text-[18px]">person_add</span>
+            Invite user
+          </button>
+        }
+      />
+
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <MetricCard label="Total users" value={users.length} icon="group" helper="All registered accounts" />
+        <MetricCard label="Admins" value={admins} icon="admin_panel_settings" helper="Full access" tone="tertiary" />
+        <MetricCard label="Designers" value={designers} icon="draw" helper="Delivery team" tone="secondary" />
+        <MetricCard label="Clients" value={clients} icon="person" helper="Brief owners" tone="neutral" />
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</div>
+        <div className="mb-4 rounded-lg bg-error-container p-3 text-body-sm text-on-error-container">{error}</div>
       )}
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
+      <SurfaceCard className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-outline-variant">
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Name</th>
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Email</th>
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Role</th>
-                <th className="px-6 py-3" />
+          <table className="w-full min-w-[720px] text-left text-body-sm">
+            <thead className="bg-surface-container-low text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              <tr>
+                <th className="px-5 py-3">Name</th>
+                <th className="px-5 py-3">Email</th>
+                <th className="px-5 py-3">Role</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
-              {users.map((u) => (
-                <tr key={u.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 font-medium text-on-surface">{u.name}</td>
-                  <td className="px-6 py-4 text-on-surface-variant">{u.email}</td>
-                  <td className="px-6 py-4">
+              {users.map((user) => (
+                <tr key={user.id} className="transition-colors hover:bg-surface-container-low">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-fixed text-label-md font-bold text-primary">
+                        {getInitials(user.name)}
+                      </div>
+                      <span className="font-semibold text-on-surface">{user.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-on-surface-variant">{user.email}</td>
+                  <td className="px-5 py-4">
                     <select
-                      className="bg-surface-container border border-outline-variant rounded-lg px-3 py-1.5 text-xs font-medium text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors min-w-[130px]"
-                      value={u.role}
-                      onChange={(e) => void updateRole(u.id, e.target.value as UserRole)}
+                      className="h-9 min-w-[130px] rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-label-md font-semibold text-on-surface outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      value={user.role}
+                      onChange={(event) => void updateRole(user.id, event.target.value as UserRole)}
                     >
-                      <option value="client">Client</option>
-                      <option value="designer">Designer</option>
-                      <option value="admin">Admin</option>
+                      <option value="client">{titleize("client")}</option>
+                      <option value="designer">{titleize("designer")}</option>
+                      <option value="admin">{titleize("admin")}</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-5 py-4 text-right">
                     <button
                       type="button"
-                      onClick={() => void remove(u.id)}
-                      className="px-3 py-1.5 text-xs font-semibold text-error border border-error-container rounded-lg hover:bg-error-container transition-colors"
+                      onClick={() => void remove(user.id)}
+                      className="rounded-lg border border-error-container px-3 py-1.5 text-label-md font-bold text-error transition-colors hover:bg-error-container"
                     >
                       Remove
                     </button>
@@ -91,13 +124,15 @@ export function AdminUsersPage() {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-on-surface-variant">No users found.</td>
+                  <td colSpan={4} className="px-5 py-10 text-center text-body-sm text-on-surface-variant">
+                    No users found.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </SurfaceCard>
     </div>
   );
 }

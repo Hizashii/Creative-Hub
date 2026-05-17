@@ -1,53 +1,6 @@
 import { NavLink } from "react-router-dom";
 import type { UserRole } from "../../types/roles";
-
-type NavItem = { to: string; label: string; icon: string };
-
-const ADMIN_NAV: NavItem[] = [
-  { to: "/admin/updates",    label: "Updates",   icon: "notifications" },
-  { to: "/admin/dashboard",  label: "Dashboard", icon: "dashboard" },
-  { to: "/admin/calendar",   label: "Calendar",  icon: "calendar_today" },
-  { to: "/admin/tasks",      label: "My Tasks",  icon: "assignment_turned_in" },
-  { to: "/admin/projects",   label: "Projects",  icon: "folder_open" },
-  { to: "/admin/users",      label: "Teams",     icon: "group" },
-  { to: "/admin/leads",      label: "Leads",     icon: "analytics" },
-  { to: "/admin/clients",    label: "Clients",   icon: "person" },
-  { to: "/admin/invoices",   label: "Invoices",  icon: "receipt_long" },
-  { to: "/admin/documents",  label: "Documents", icon: "description" },
-];
-
-const DESIGNER_NAV: NavItem[] = [
-  { to: "/designer/updates",   label: "Updates",   icon: "notifications" },
-  { to: "/designer/dashboard", label: "Dashboard", icon: "dashboard" },
-  { to: "/designer/calendar",  label: "Calendar",  icon: "calendar_today" },
-  { to: "/designer/tasks",     label: "My Tasks",  icon: "assignment_turned_in" },
-  { to: "/designer/projects",  label: "Projects",  icon: "folder_open" },
-  { to: "/designer/teams",     label: "Teams",     icon: "group" },
-  { to: "/designer/leads",     label: "Leads",     icon: "analytics" },
-  { to: "/designer/clients",   label: "Clients",   icon: "person" },
-  { to: "/designer/invoices",  label: "Invoices",  icon: "receipt_long" },
-  { to: "/designer/documents", label: "Documents", icon: "description" },
-];
-
-const CLIENT_NAV: NavItem[] = [
-  { to: "/client/updates",   label: "Updates",   icon: "notifications" },
-  { to: "/client/dashboard", label: "Dashboard", icon: "dashboard" },
-  { to: "/client/calendar",  label: "Calendar",  icon: "calendar_today" },
-  { to: "/client/invoices",  label: "Invoices",  icon: "receipt_long" },
-  { to: "/client/documents", label: "Documents", icon: "description" },
-];
-
-const NAV: Record<UserRole, NavItem[]> = {
-  admin: ADMIN_NAV,
-  designer: DESIGNER_NAV,
-  client: CLIENT_NAV,
-};
-
-const areaLabel: Record<UserRole, string> = {
-  admin: "Administration",
-  designer: "Creative Pro",
-  client: "Client Workspace",
-};
+import { AREA_LABEL, DASHBOARD_NAV } from "./dashboardNav";
 
 const activeClass =
   "bg-primary-container text-on-primary-container rounded-lg font-bold flex items-center gap-3 px-4 py-3 border-l-4 border-primary shadow-sm no-underline";
@@ -55,22 +8,21 @@ const inactiveClass =
   "text-on-surface-variant flex items-center gap-3 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 rounded-lg no-underline";
 
 export function Sidebar({ role }: { role: UserRole }) {
-  const items = NAV[role];
+  const items = DASHBOARD_NAV[role];
 
   return (
-    <nav className="w-[280px] h-screen fixed left-0 top-0 border-r border-outline-variant bg-surface hidden md:flex flex-col py-6 px-4 z-50 overflow-y-auto">
-      {/* Brand */}
-      <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold text-xl">
+    <nav className="fixed left-0 top-0 z-50 hidden h-screen w-[280px] flex-col overflow-y-auto border-r border-outline-variant bg-surface px-4 py-6 md:flex">
+      <div className="mb-8 flex items-center gap-3 px-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-container text-lg font-bold text-on-primary-container">
           CH
         </div>
-        <div>
-          <h1 className="text-base font-bold text-on-surface leading-tight">Creative Hub</h1>
-          <p className="text-xs text-on-surface-variant font-normal">{areaLabel[role]}</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-headline-md font-bold leading-tight text-on-surface">Creative Hub</h1>
+          <p className="text-label-md text-on-surface-variant">{AREA_LABEL[role]}</p>
         </div>
+        <span className="material-symbols-outlined ml-auto text-[18px] text-on-surface-variant">unfold_more</span>
       </div>
 
-      {/* Main nav */}
       <div className="flex-1 space-y-1">
         {items.map((item) => (
           <NavLink
@@ -80,9 +32,48 @@ export function Sidebar({ role }: { role: UserRole }) {
             className={({ isActive }) => (isActive ? activeClass : inactiveClass)}
           >
             <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
-            <span className="text-xs font-semibold tracking-wide">{item.label}</span>
+            <span className="text-label-md font-semibold">{item.label}</span>
+            {item.badge && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-on-error">
+                {item.badge}
+              </span>
+            )}
           </NavLink>
         ))}
+      </div>
+
+      <div className="mt-8">
+        <p className="mb-2 px-4 text-label-sm font-bold uppercase tracking-[0.08em] text-outline">
+          Favourite
+        </p>
+        <div className="space-y-1">
+          <NavLink
+            to={`/${role}/projects`}
+            className="flex items-center gap-3 rounded-lg px-4 py-2 text-on-surface-variant no-underline transition-colors hover:bg-surface-container-high"
+          >
+            <span className="flex h-4 w-4 items-center justify-center rounded bg-primary-container text-[10px] text-primary">
+              <span className="material-symbols-outlined text-[12px]">star</span>
+            </span>
+            <span className="text-label-md font-semibold">Active Projects</span>
+          </NavLink>
+        </div>
+      </div>
+
+      <div className="mt-auto space-y-1 border-t border-outline-variant pt-6">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-on-surface-variant transition-colors hover:bg-surface-container-high"
+        >
+          <span className="material-symbols-outlined text-[20px]">settings</span>
+          <span className="text-label-md font-semibold">Settings</span>
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-on-surface-variant transition-colors hover:bg-surface-container-high"
+        >
+          <span className="material-symbols-outlined text-[20px]">headset_mic</span>
+          <span className="text-label-md font-semibold">Support</span>
+        </button>
       </div>
     </nav>
   );

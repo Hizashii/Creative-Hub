@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import type { Project } from "../../types/domain";
+import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
+import { formatDate, titleize } from "../../utils/format";
 
-const STATUS_CLS: Record<string, string> = {
-  in_progress: "bg-primary-container text-on-primary-container",
-  paused: "bg-tertiary-fixed text-on-tertiary-fixed",
-  completed: "bg-secondary-container text-on-secondary-container",
-  draft: "bg-surface-variant text-on-surface-variant",
+const statusTone: Record<Project["status"], "primary" | "secondary" | "tertiary" | "neutral"> = {
+  in_progress: "primary",
+  paused: "tertiary",
+  completed: "secondary",
+  draft: "neutral",
 };
 
 export function AdminProjectsPage() {
@@ -24,56 +26,77 @@ export function AdminProjectsPage() {
       }
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-[32px] font-bold text-on-surface tracking-tight">All projects</h1>
-        <p className="text-sm text-on-surface-variant mt-1">Every active initiative across clients and internal teams.</p>
-      </div>
+    <div className="mx-auto max-w-7xl">
+      <PageHeader
+        eyebrow="Portfolio"
+        title="All projects"
+        description="Every active initiative across clients and internal creative teams."
+        actions={
+          <Link
+            to="/admin/briefs"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary no-underline transition-opacity hover:opacity-90"
+          >
+            <span className="material-symbols-outlined text-[18px]">fact_check</span>
+            Review briefs
+          </Link>
+        }
+      />
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-outline-variant">
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Title</th>
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-wider">Owner</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {projects.map((p) => (
-                <tr key={p.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="px-6 py-4 font-medium text-on-surface">{p.title}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-semibold ${STATUS_CLS[p.status] ?? STATUS_CLS.draft}`}>
-                      {p.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant font-mono text-xs">{p.ownerId}</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      to={`/admin/projects/${p.id}`}
-                      className="px-3 py-1.5 text-xs font-semibold text-primary border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors no-underline"
-                    >
-                      Workspace
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {projects.length === 0 && (
+      {projects.length === 0 ? (
+        <EmptyState
+          icon="folder_open"
+          title="No projects yet"
+          description="Accepted briefs become projects and will show up in this table."
+        />
+      ) : (
+        <SurfaceCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-body-sm">
+              <thead className="bg-surface-container-low text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-on-surface-variant">No projects yet.</td>
+                  <th className="px-5 py-3">Title</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Owner</th>
+                  <th className="px-5 py-3">Updated</th>
+                  <th className="px-5 py-3 text-right">Workspace</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-outline-variant">
+                {projects.map((project) => (
+                  <tr key={project.id} className="transition-colors hover:bg-surface-container-low">
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-on-surface">{project.title}</p>
+                      {project.description && (
+                        <p className="mt-1 line-clamp-1 max-w-md text-label-sm text-on-surface-variant">{project.description}</p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusPill tone={statusTone[project.status]}>{titleize(project.status)}</StatusPill>
+                    </td>
+                    <td className="px-5 py-4 font-mono text-label-sm text-on-surface-variant">{project.ownerId}</td>
+                    <td className="px-5 py-4 text-on-surface-variant">{formatDate(project.updatedAt ?? project.createdAt)}</td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        to={`/admin/projects/${project.id}`}
+                        className="inline-flex items-center gap-1 text-label-md font-bold text-primary no-underline hover:underline"
+                      >
+                        Open
+                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SurfaceCard>
+      )}
     </div>
   );
 }
