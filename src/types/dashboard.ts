@@ -69,6 +69,13 @@ export type CollaboratorRow = {
   role: string;
 };
 
+export type DesignerDirectoryRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: "designer";
+};
+
 export type InvoiceRow = {
   id: string;
   createdById: string;

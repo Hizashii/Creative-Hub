@@ -1,6 +1,6 @@
 import { Schema, model, type InferSchemaType } from "mongoose";
 
-const projectStatuses = ["draft", "in_progress", "paused", "completed"] as const;
+const projectStatuses = ["draft", "in_progress", "pending", "paused", "completed"] as const;
 
 const projectSchema = new Schema(
   {

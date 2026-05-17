@@ -7,6 +7,7 @@ import { formatDate, titleize } from "../../utils/format";
 
 const statusTone: Record<Project["status"], "primary" | "secondary" | "tertiary" | "neutral"> = {
   in_progress: "primary",
+  pending: "tertiary",
   paused: "tertiary",
   completed: "secondary",
   draft: "neutral",

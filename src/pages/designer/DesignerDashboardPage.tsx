@@ -38,7 +38,7 @@ export function DesignerDashboardPage() {
         <div>
           <h1 className="text-[32px] font-bold text-on-surface tracking-tight">Creative Pro Studio</h1>
           <p className="text-sm text-on-surface-variant mt-1">
-            Pick up tasks across your projects and keep client briefs within reach.
+            Work on assigned projects and keep invited client requirements within reach.
           </p>
         </div>
         <Link
@@ -55,16 +55,16 @@ export function DesignerDashboardPage() {
         <div className="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 bg-white opacity-5 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-on-primary-container mb-1">Ready to pick up work?</h2>
+            <h2 className="text-base font-bold text-on-primary-container mb-1">Building a project team?</h2>
             <p className="text-sm text-on-primary-container opacity-80">
-              Browse open client requirements and claim the ones that match your expertise.
+              Invite another saved designer to an active project from the Teams page.
             </p>
           </div>
           <Link
-            to="/designer/briefs"
+            to="/designer/teams"
             className="px-4 py-2 bg-on-primary text-primary-container text-xs font-semibold rounded-lg hover:bg-surface-container-lowest transition-colors no-underline whitespace-nowrap"
           >
-            Browse briefs
+            Open teams
           </Link>
         </div>
       </div>
@@ -81,7 +81,7 @@ export function DesignerDashboardPage() {
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 text-center">
             <span className="material-symbols-outlined text-[40px] text-on-surface-variant mb-3 block">folder_open</span>
             <p className="text-sm text-on-surface-variant">
-              You're not assigned to any projects yet. Pick up a brief to get started.
+              You're not assigned to any projects yet.
             </p>
           </div>
         ) : (
@@ -96,7 +96,7 @@ export function DesignerDashboardPage() {
       {/* Open briefs */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-on-surface">Open client briefs</h2>
+          <h2 className="text-base font-semibold text-on-surface">Assigned requirements</h2>
           <Link to="/designer/briefs" className="text-xs font-semibold text-primary hover:underline no-underline">
             View all
           </Link>
@@ -104,7 +104,9 @@ export function DesignerDashboardPage() {
         {briefs.length === 0 ? (
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 text-center">
             <span className="material-symbols-outlined text-[40px] text-on-surface-variant mb-3 block">description</span>
-            <p className="text-sm text-on-surface-variant">No briefs in the system yet.</p>
+            <p className="text-sm text-on-surface-variant">
+              You only see requirements tied to projects where you are a member.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

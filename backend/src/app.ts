@@ -1,11 +1,11 @@
 import "./types/express-augment";
 import express from "express";
-import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 
 import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
 import { openapiDocument } from "./config/openapi";
+import { applyHttpSecurity, applyParsedBodySecurity } from "./security";
 
 import authRoutes from "./routes/auth.routes";
 import projectRoutes from "./routes/projects.routes";
@@ -16,8 +16,9 @@ import invoiceRoutes from "./routes/invoices.routes";
 
 const app = express();
 
-app.use(cors());
+applyHttpSecurity(app);
 app.use(express.json({ limit: "25mb" }));
+applyParsedBodySecurity(app);
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument as never));
 

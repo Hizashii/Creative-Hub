@@ -2,7 +2,7 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 
 const designTypes = ["logo", "poster", "branding", "social-media", "website"] as const;
 
-const briefStatuses = ["submitted", "accepted", "in-progress", "completed"] as const;
+const briefStatuses = ["submitted", "accepted", "in-progress", "pending", "completed"] as const;
 
 const briefSchema = new Schema(
   {

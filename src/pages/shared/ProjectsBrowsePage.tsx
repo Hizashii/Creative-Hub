@@ -28,6 +28,7 @@ export function ProjectsBrowsePage() {
   const filters = [
     { key: "all", label: "All" },
     { key: "in_progress", label: "In Progress" },
+    { key: "pending", label: "Pending" },
     { key: "completed", label: "Completed" },
     { key: "paused", label: "Paused" },
     { key: "draft", label: "Draft" },

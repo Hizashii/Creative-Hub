@@ -10,6 +10,7 @@ import { MemberModel } from "../models/project_memebers.models";
 import { UserModel } from "../models/user.models";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { parseObjectId } from "../utils/mongoose";
+import { getAccessibleProjectIds } from "../services/accessibleProjects";
 import { updateBriefBody } from "../schemas/validation";
 
 type BriefLean = {
@@ -55,12 +56,31 @@ function toBriefLean(doc: unknown): BriefLean {
   return b;
 }
 
+async function getAccessibleBriefIds(userId: Types.ObjectId, role: string) {
+  const projectIds = await getAccessibleProjectIds(userId, role);
+  if (projectIds.length === 0) return [];
+  const projects = await ProjectModel.find({
+    _id: { $in: projectIds },
+    briefId: { $exists: true, $ne: null },
+  })
+    .select("briefId")
+    .lean();
+
+  return projects
+    .map((project) => project.briefId)
+    .filter((briefId): briefId is Types.ObjectId => briefId instanceof Types.ObjectId);
+}
+
 export const listBriefs = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  const q =
-    req.user.role === "client"
-      ? { clientId: new Types.ObjectId(req.user.id) }
-      : {};
+  let q: Record<string, unknown> = {};
+  if (req.user.role === "client") {
+    q = { clientId: new Types.ObjectId(req.user.id) };
+  }
+  if (req.user.role === "designer") {
+    const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), req.user.role);
+    q = { _id: { $in: briefIds } };
+  }
   const items = await BriefModel.find(q).sort({ createdAt: -1 }).lean();
   res.json(items.map((row: unknown) => briefToJSON(toBriefLean(row))));
 });
@@ -72,6 +92,10 @@ export const getBrief = asyncHandler(async (req: Request, res: Response) => {
   if (!b) throw new ApiError(404, "Brief not found");
   if (req.user.role === "client" && b.clientId.toString() !== req.user.id) {
     throw new ApiError(403, "Forbidden");
+  }
+  if (req.user.role === "designer") {
+    const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), req.user.role);
+    if (!briefIds.some((briefId) => briefId.equals(id))) throw new ApiError(403, "Forbidden");
   }
   res.json(briefToJSON(toBriefLean(b)));
 });
@@ -173,6 +197,10 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
 
   const brief = await BriefModel.findById(id);
   if (!brief) throw new ApiError(404, "Brief not found");
+  if (currentRole === "designer") {
+    const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), currentRole);
+    if (!briefIds.some((briefId) => briefId.equals(id))) throw new ApiError(403, "Forbidden");
+  }
   if (brief.status !== "submitted") {
     throw new ApiError(400, "Only submitted briefs can be accepted");
   }

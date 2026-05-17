@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ProjectModel } from "../models/projects.models";
+import { BriefModel } from "../models/brief.models";
 import { MemberModel } from "../models/project_memebers.models";
 import { ColumnModel } from "../models/columns.models";
 import { TaskModel } from "../models/tasks.models";
@@ -10,6 +11,8 @@ import { FeedbackModel } from "../models/feedback.models";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { parseObjectId } from "../utils/mongoose";
 import { getAccessibleProjectIds } from "../services/accessibleProjects";
+
+type ProjectStatusInput = "draft" | "in_progress" | "pending" | "paused" | "completed";
 
 function projectJSON(p: {
   _id: unknown;
@@ -33,6 +36,11 @@ function projectJSON(p: {
   };
 }
 
+async function updateLinkedBriefStatus(briefId: unknown, status: "in-progress" | "pending" | "completed") {
+  if (!briefId) return;
+  await BriefModel.updateOne({ _id: briefId }, { $set: { status } });
+}
+
 export const listProjects = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
@@ -53,7 +61,7 @@ export const createProject = asyncHandler(async (req: Request, res: Response) =>
   const { title, description, status } = req.body as {
     title: string;
     description?: string;
-    status?: "draft" | "in_progress" | "paused" | "completed";
+    status?: ProjectStatusInput;
   };
 
   const ownerId = parseObjectId(req.user.id, "user id");
@@ -103,7 +111,7 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   const { title, description, status } = req.body as {
     title?: string;
     description?: string;
-    status?: "draft" | "in_progress" | "paused" | "completed";
+    status?: ProjectStatusInput;
   };
 
   const updates: Record<string, unknown> = {};
@@ -113,7 +121,53 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
 
   const p = await ProjectModel.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
   if (!p) throw new ApiError(404, "Project not found");
+  if (status === "pending" || status === "completed" || status === "in_progress") {
+    await updateLinkedBriefStatus(p.briefId, status === "in_progress" ? "in-progress" : status);
+  }
   res.json(projectJSON(p as Parameters<typeof projectJSON>[0]));
+});
+
+export const submitProjectForApproval = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new ApiError(401, "Not authenticated");
+  if (req.user.role !== "designer" && req.user.role !== "admin") {
+    throw new ApiError(403, "Only professionals can mark project work as done");
+  }
+
+  const id = parseRequestObjectId(req, "projectId", "project id");
+  const project = await ProjectModel.findById(id);
+  if (!project) throw new ApiError(404, "Project not found");
+  if (project.status === "completed") throw new ApiError(400, "Project is already completed");
+
+  const hasPreview = await AssetModel.exists({ projectId: id, tags: "preview" });
+  if (!hasPreview) throw new ApiError(400, "Send a PNG preview before marking this project all done");
+
+  project.status = "pending";
+  await project.save();
+  await updateLinkedBriefStatus(project.briefId, "pending");
+
+  res.json(projectJSON(project.toObject()));
+});
+
+export const approveProjectCompletion = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new ApiError(401, "Not authenticated");
+  const id = parseRequestObjectId(req, "projectId", "project id");
+  const project = await ProjectModel.findById(id);
+  if (!project) throw new ApiError(404, "Project not found");
+
+  const userId = parseObjectId(req.user.id, "user id");
+  const isOwner = project.ownerId?.equals(userId);
+  if (req.user.role !== "admin" && !(req.user.role === "client" && isOwner)) {
+    throw new ApiError(403, "Only the client can approve and close this project");
+  }
+  if (project.status !== "pending") {
+    throw new ApiError(400, "Project must be pending client approval before it can be completed");
+  }
+
+  project.status = "completed";
+  await project.save();
+  await updateLinkedBriefStatus(project.briefId, "completed");
+
+  res.json(projectJSON(project.toObject()));
 });
 
 export const deleteProject = asyncHandler(async (req: Request, res: Response) => {

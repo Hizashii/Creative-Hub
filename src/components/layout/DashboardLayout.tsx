@@ -3,6 +3,7 @@ import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import type { UserRole } from "../../types/roles";
 import { DASHBOARD_NAV } from "./dashboardNav";
+import { LogoMark } from "../LogoMark";
 
 function MobileDashboardNav({ area }: { area: UserRole }) {
   const items = DASHBOARD_NAV[area].slice(0, 5);
@@ -36,7 +37,10 @@ function DashboardFooter() {
   return (
     <footer className="border-t border-outline-variant bg-surface-bright px-4 py-6 pb-24 text-body-sm text-on-surface-variant sm:px-6 md:pb-6 lg:px-10">
       <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-semibold text-on-surface">Creative Hub</p>
+        <p className="flex items-center gap-2 font-semibold text-on-surface">
+          <LogoMark className="h-7 w-7" />
+          Creative Hub
+        </p>
         <p>Project delivery, requirements, invoices, and client approvals in one workspace.</p>
       </div>
     </footer>

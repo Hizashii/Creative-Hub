@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import type { UserRole } from "../../types/roles";
 import { AREA_LABEL, DASHBOARD_NAV } from "./dashboardNav";
+import { LogoMark } from "../LogoMark";
 
 const activeClass =
   "bg-primary-container text-on-primary-container rounded-lg font-bold flex items-center gap-3 px-4 py-3 border-l-4 border-primary shadow-sm no-underline";
@@ -13,9 +14,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   return (
     <nav className="fixed left-0 top-0 z-50 hidden h-screen w-[280px] flex-col overflow-y-auto border-r border-outline-variant bg-surface px-4 py-6 md:flex">
       <div className="mb-8 flex items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-container text-lg font-bold text-on-primary-container">
-          CH
-        </div>
+        <LogoMark className="h-11 w-11" />
         <div className="min-w-0">
           <h1 className="truncate text-headline-md font-bold leading-tight text-on-surface">Creative Hub</h1>
           <p className="text-label-md text-on-surface-variant">{AREA_LABEL[role]}</p>

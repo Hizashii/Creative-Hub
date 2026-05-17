@@ -3,6 +3,7 @@ import type { Project } from "../../types/domain";
 
 const STATUS = {
   in_progress: { label: "In progress", cls: "bg-primary-container text-on-primary-container" },
+  pending: { cls: "bg-tertiary-fixed text-on-tertiary-fixed", label: "Pending" },
   paused: { cls: "bg-tertiary-fixed text-on-tertiary-fixed", label: "Paused" },
   completed: { cls: "bg-secondary-container text-on-secondary-container", label: "Completed" },
   draft: { cls: "bg-surface-variant text-on-surface-variant", label: "Draft" },
@@ -10,6 +11,7 @@ const STATUS = {
 
 const PROGRESS: Record<string, number> = {
   completed: 100,
+  pending: 90,
   in_progress: 66,
   paused: 40,
   draft: 20,

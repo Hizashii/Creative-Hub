@@ -9,6 +9,7 @@ type Counts = { projects: number; briefs: number; users: number; inProgress: num
 
 const statusTone: Record<Project["status"], "primary" | "secondary" | "tertiary" | "neutral"> = {
   in_progress: "primary",
+  pending: "tertiary",
   completed: "secondary",
   paused: "tertiary",
   draft: "neutral",
@@ -87,7 +88,7 @@ export function AdminDashboardPage() {
       </div>
 
       <div className="mb-8 flex flex-wrap gap-3 border-b border-outline-variant">
-        {["All", "In progress", "Paused", "Completed", "Draft"].map((tab, index) => (
+        {["All", "In progress", "Pending", "Paused", "Completed", "Draft"].map((tab, index) => (
           <button
             key={tab}
             type="button"

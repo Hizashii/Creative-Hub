@@ -1,6 +1,6 @@
 import type { UserRole } from "./roles";
 
-export type ProjectStatus = "draft" | "in_progress" | "paused" | "completed";
+export type ProjectStatus = "draft" | "in_progress" | "pending" | "paused" | "completed";
 
 export type Project = {
   id: string;
@@ -61,7 +61,7 @@ export type FeedbackMessage = {
   updatedAt?: string;
 };
 
-export type BriefStatus = "submitted" | "accepted" | "in-progress" | "completed";
+export type BriefStatus = "submitted" | "accepted" | "in-progress" | "pending" | "completed";
 
 export type DesignType = "logo" | "poster" | "branding" | "social-media" | "website";
 

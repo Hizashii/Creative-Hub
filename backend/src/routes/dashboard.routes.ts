@@ -11,5 +11,6 @@ router.get("/documents", dashboard.listDocuments);
 router.get("/leads", dashboard.listLeads);
 router.get("/clients", dashboard.listClientDirectory);
 router.get("/collaborators", dashboard.listCollaborators);
+router.get("/designers", dashboard.listDesigners);
 
 export default router;

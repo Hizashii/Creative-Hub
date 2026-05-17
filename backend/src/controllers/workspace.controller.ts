@@ -232,12 +232,17 @@ export const addMember = asyncHandler(async (req: Request, res: Response) => {
   if (!project) throw new ApiError(404, "Project not found");
   const requester = new Types.ObjectId(req.user.id);
   const isOwner = project.ownerId?.equals(requester);
-  if (req.user.role !== "admin" && !isOwner) throw new ApiError(403, "Only the owner or an admin can add members");
+  const requesterMember = await MemberModel.findOne({ projectId, userId: requester }).select("memberRole").lean();
+  const canInvite = req.user.role === "admin" || isOwner || (req.user.role === "designer" && requesterMember);
+  if (!canInvite) throw new ApiError(403, "Only project members, the owner, or an admin can add members");
 
   const { userId, memberRole } = req.body as { userId: string; memberRole?: "lead" | "member" | "viewer" };
   const uid = parseObjectId(userId, "user id");
   const user = await UserModel.findById(uid).lean();
   if (!user) throw new ApiError(404, "User not found");
+  if (req.user.role === "designer" && (user as { role: string }).role !== "designer") {
+    throw new ApiError(403, "Designers can only invite other designers");
+  }
 
   try {
     const m = await MemberModel.create({

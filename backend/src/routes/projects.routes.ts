@@ -28,6 +28,8 @@ byProject.use(requireProjectAccess);
 byProject.get("/", projects.getProject);
 byProject.patch("/", validateBody(patchProjectBody), projects.updateProject);
 byProject.delete("/", projects.deleteProject);
+byProject.post("/submit-completion", projects.submitProjectForApproval);
+byProject.post("/approve-completion", projects.approveProjectCompletion);
 
 byProject.get("/columns", workspace.listColumns);
 byProject.post("/columns", validateBody(createColumnBody), workspace.createColumn);

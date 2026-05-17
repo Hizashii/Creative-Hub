@@ -3,6 +3,7 @@ import { useParams, Link, useLocation } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
 import type { Project, Column, Task, Asset, FeedbackMessage, ProjectMember } from "../../types/domain";
 import { ProjectStatusSelect } from "../../components/projects/ProjectStatusSelect";
+import { ProjectChatPanel } from "../../components/projects/ProjectChatPanel";
 import { useAuth } from "../../hooks/useAuth";
 import { SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, getInitials } from "../../utils/format";
@@ -30,6 +31,8 @@ export function ProjectWorkspacePage() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("card");
+  const [completionPending, setCompletionPending] = useState(false);
+  const [approvalPending, setApprovalPending] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -109,6 +112,35 @@ export function ProjectWorkspacePage() {
     }
   }
 
+  async function submitCompletion() {
+    if (!projectId) return;
+    setError(null);
+    setCompletionPending(true);
+    try {
+      const updated = await api<Project>(`/projects/${projectId}/submit-completion`, { method: "POST" });
+      setProject(updated);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not mark this project as done");
+    } finally {
+      setCompletionPending(false);
+    }
+  }
+
+  async function approveCompletion() {
+    if (!projectId) return;
+    setError(null);
+    setApprovalPending(true);
+    try {
+      const updated = await api<Project>(`/projects/${projectId}/approve-completion`, { method: "POST" });
+      setProject(updated);
+      setPaymentComplete(true);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not approve this project");
+    } finally {
+      setApprovalPending(false);
+    }
+  }
+
   async function addTask(e: React.FormEvent) {
     e.preventDefault();
     if (!projectId || !newTaskTitle.trim() || !newTaskCol) return;
@@ -136,11 +168,23 @@ export function ProjectWorkspacePage() {
     tasksByCol.set(col.id, tasks.filter((t) => t.columnId === col.id).sort((a, b) => a.order - b.order));
   }
 
-  const canManage = user?.role === "admin" || user?.id === project.ownerId;
-  const canSendPreview = user?.role === "admin" || user?.role === "designer";
-  const canApprovePreview = user?.role === "client" && user.id === project.ownerId;
-  const previewAssets = assets.filter((asset) => asset.tags.includes("preview"));
+  const canManageStatus = user?.role === "admin";
+  const canSendPreview = (user?.role === "admin" || user?.role === "designer") && project.status !== "completed";
+  const isPendingApproval = project.status === "pending";
+  const isCompleted = project.status === "completed";
+  const canSubmitCompletion = canSendPreview && !isPendingApproval && !isCompleted;
+  const canApprovePreview = user?.role === "client" && user.id === project.ownerId && isPendingApproval;
+  const previewAssets = assets
+    .filter((asset) => asset.tags.includes("preview"))
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
   const deliveryPrice = 49;
+  const projectStatusLabel: Record<Project["status"], string> = {
+    draft: "Draft",
+    in_progress: "In progress",
+    pending: "Pending",
+    paused: "Paused",
+    completed: "Completed",
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -154,13 +198,42 @@ export function ProjectWorkspacePage() {
           <h1 className="text-[32px] font-bold text-on-surface tracking-tight">{project.title}</h1>
           <p className="text-sm text-on-surface-variant mt-1">{project.description || "Shared workspace with tasks, gallery, and chat."}</p>
         </div>
-        {canManage && (
-          <ProjectStatusSelect projectId={projectId} value={project.status} onUpdated={(p) => setProject(p)} />
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-surface-container-high px-3 py-1 text-label-md font-bold text-on-surface-variant">
+            {projectStatusLabel[project.status]}
+          </span>
+          {canManageStatus && (
+            <ProjectStatusSelect projectId={projectId} value={project.status} onUpdated={(p) => setProject(p)} />
+          )}
+        </div>
       </div>
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-error-container text-on-error-container text-sm">{error}</div>
+      )}
+
+      {isPendingApproval && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-tertiary-fixed/40 bg-tertiary-fixed/20 p-4 text-on-surface">
+          <span className="material-symbols-outlined text-[22px] text-tertiary">pending_actions</span>
+          <div>
+            <p className="text-label-lg font-bold">Pending client approval</p>
+            <p className="mt-1 text-body-sm text-on-surface-variant">
+              The professional marked this project all done. The client can review the preview and approve it.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-secondary-container bg-secondary-container/60 p-4 text-on-secondary-container">
+          <span className="material-symbols-outlined text-[22px]">check_circle</span>
+          <div>
+            <p className="text-label-lg font-bold">Project completed and closed</p>
+            <p className="mt-1 text-body-sm opacity-80">
+              The client approved the preview and the project is now closed.
+            </p>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
@@ -265,6 +338,26 @@ export function ProjectWorkspacePage() {
               </form>
             )}
 
+            {canSubmitCompletion && (
+              <div className="flex flex-col gap-3 border-b border-outline-variant bg-surface-container-low p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-label-lg font-bold text-on-surface">Ready for client approval?</p>
+                  <p className="mt-1 text-body-sm text-on-surface-variant">
+                    Click all done after the PNG preview is ready for the client to approve.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={completionPending || previewAssets.length === 0}
+                  onClick={() => void submitCompletion()}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">task_alt</span>
+                  {completionPending ? "Submitting..." : "All done"}
+                </button>
+              </div>
+            )}
+
             <div className="p-6">
               {previewAssets.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-outline-variant bg-surface-container-low p-6 text-center">
@@ -302,8 +395,13 @@ export function ProjectWorkspacePage() {
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
                       >
                         <span className="material-symbols-outlined text-[18px]">favorite</span>
-                        I love it! Please send it!
+                        Yes, I love it!
                       </button>
+                    )}
+                    {user?.role === "client" && previewAssets.length > 0 && !isPendingApproval && !isCompleted && (
+                      <p className="rounded-lg bg-surface-container-low p-3 text-body-sm text-on-surface-variant">
+                        Waiting for the professional to mark this project all done before approval.
+                      </p>
                     )}
                   </div>
                 </div>
@@ -348,34 +446,14 @@ export function ProjectWorkspacePage() {
           </div>
         </div>
 
-        {/* Right: Chat panel */}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl flex flex-col max-h-[calc(100vh-12rem)] sticky top-24">
-          <div className="px-6 py-4 border-b border-outline-variant">
-            <h2 className="text-sm font-semibold text-on-surface">Project chat</h2>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {feedback.map((fb) => (
-              <div key={fb.id} className="bg-surface-container rounded-xl p-3">
-                <p className="text-xs text-on-surface-variant mb-1">
-                  {fb.createdAt ? new Date(fb.createdAt).toLocaleString() : ""}
-                  {fb.authorId === user?.id ? " / You" : ""}
-                </p>
-                <p className="text-sm text-on-surface">{fb.message}</p>
-              </div>
-            ))}
-          </div>
-          <form onSubmit={sendMessage} className="flex gap-2 p-4 border-t border-outline-variant">
-            <input
-              className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-              placeholder="Message..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-            <button type="submit" className="px-3 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity">
-              <span className="material-symbols-outlined text-[16px]">send</span>
-            </button>
-          </form>
-        </div>
+        <ProjectChatPanel
+          feedback={feedback}
+          members={members}
+          currentUser={user}
+          message={message}
+          onMessageChange={setMessage}
+          onSend={sendMessage}
+        />
       </div>
 
       {(paymentOpen || paymentComplete) && (
@@ -388,7 +466,7 @@ export function ProjectWorkspacePage() {
                 </div>
                 <h2 className="text-display-lg-mobile font-bold text-on-surface">Payment complete</h2>
                 <p className="mt-3 text-body-sm text-on-surface-variant">
-                  Your mock payment went through. The professional can now prepare the final delivery files.
+                  Your mock payment went through. The project is completed and closed.
                 </p>
                 <button
                   type="button"
@@ -457,11 +535,12 @@ export function ProjectWorkspacePage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setPaymentComplete(true)}
-                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
+                    disabled={approvalPending}
+                    onClick={() => void approveCompletion()}
+                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-[18px]">lock</span>
-                    Pay mock invoice
+                    {approvalPending ? "Processing..." : "Pay mock invoice"}
                   </button>
                 </div>
               </div>

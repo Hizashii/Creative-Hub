@@ -26,6 +26,7 @@ export function ProjectStatusSelect({
     >
       <option value="draft">Draft</option>
       <option value="in_progress">In progress</option>
+      <option value="pending">Pending</option>
       <option value="paused">Paused</option>
       <option value="completed">Completed</option>
     </select>

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { ApiRequestError } from "../../api/client";
 import { AuthMediaPanel } from "./AuthMediaPanel";
+import { LogoMark } from "../LogoMark";
 
 const home = (role: string) =>
   role === "admin" ? "/admin/dashboard" : role === "designer" ? "/designer/dashboard" : "/client/dashboard";
@@ -33,11 +34,15 @@ export function LoginForm() {
     <div className="min-h-screen flex bg-surface text-on-surface antialiased">
       {/* Left: Form */}
       <main className="w-full lg:w-1/2 flex flex-col justify-center px-6 py-12 md:px-12 lg:px-20 bg-surface-container-lowest relative">
-        {/* Brand */}
-        <div className="absolute top-8 left-6 md:left-12 lg:left-20 flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary text-[18px]">widgets</span>
-          </div>
+        <div className="absolute left-6 top-8 flex items-center gap-3 md:left-12 lg:left-20">
+          <Link
+            to="/"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant bg-surface-container-lowest text-on-surface-variant no-underline transition-colors hover:border-primary hover:text-primary"
+            aria-label="Back to home"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          </Link>
+          <LogoMark className="h-9 w-9" />
           <span className="text-base font-bold text-on-surface">Creative Hub</span>
         </div>
 

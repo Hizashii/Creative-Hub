@@ -105,7 +105,23 @@ export function BriefDetailPage() {
   }
 
   const canEditClient = user?.role === "client" && brief.clientId === user.id && brief.status === "submitted";
-  const canPickUp = (user?.role === "designer" || user?.role === "admin") && brief.status === "submitted";
+  const canPickUp = user?.role === "admin" && brief.status === "submitted";
+  const showClientProjectLink =
+    user?.role === "client" && ["in-progress", "pending", "completed"].includes(brief.status);
+  const projectLinkCopy: Record<string, { title: string; body: string }> = {
+    "in-progress": {
+      title: "Picked up",
+      body: "A professional has picked this up. Open your projects area to follow the workspace and preview.",
+    },
+    pending: {
+      title: "Ready for approval",
+      body: "The professional marked the work all done. Open the project to review the preview and approve it.",
+    },
+    completed: {
+      title: "Completed",
+      body: "This requirement has been approved and the project is closed.",
+    },
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -235,11 +251,13 @@ export function BriefDetailPage() {
             </div>
           )}
 
-          {brief.status === "in-progress" && user?.role === "client" && (
+          {showClientProjectLink && (
             <SurfaceCard className="p-5">
-              <h2 className="text-headline-md font-semibold text-on-surface">Picked up</h2>
+              <h2 className="text-headline-md font-semibold text-on-surface">
+                {projectLinkCopy[brief.status]?.title ?? "Project ready"}
+              </h2>
               <p className="mt-2 text-body-sm text-on-surface-variant">
-                A professional has picked this up. Open your projects area to follow the workspace and preview.
+                {projectLinkCopy[brief.status]?.body ?? "Open your projects area to follow this requirement."}
               </p>
               <Link
                 to={`${base}/projects`}
@@ -253,7 +271,7 @@ export function BriefDetailPage() {
           {canPickUp && (
             <SurfaceCard className="p-5">
               <h2 className="mb-2 text-headline-md font-semibold text-on-surface">
-                {user?.role === "designer" ? "Pick up this project" : "Assign professional"}
+                Assign professional
               </h2>
               <p className="mb-4 text-body-sm text-on-surface-variant">
                 This creates a project workspace and assigns the selected professional.
@@ -287,7 +305,7 @@ export function BriefDetailPage() {
                 onClick={() => void accept()}
               >
                 <span className="material-symbols-outlined text-[18px]">work</span>
-                {accepting ? "Creating workspace..." : user?.role === "designer" ? "Pick it up" : "Create project"}
+                {accepting ? "Creating workspace..." : "Create project"}
               </button>
             </SurfaceCard>
           )}

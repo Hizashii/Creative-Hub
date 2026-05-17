@@ -9,6 +9,7 @@ const filters: { id: "all" | BriefStatus; label: string }[] = [
   { id: "all", label: "All" },
   { id: "submitted", label: "Waiting" },
   { id: "in-progress", label: "In progress" },
+  { id: "pending", label: "Pending" },
   { id: "completed", label: "Completed" },
 ];
 
@@ -42,17 +43,20 @@ export function BriefsBrowsePage() {
 
   const waiting = items.filter((item) => item.status === "submitted").length;
   const inProgress = items.filter((item) => item.status === "in-progress").length;
+  const pending = items.filter((item) => item.status === "pending").length;
   const completed = items.filter((item) => item.status === "completed").length;
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
         eyebrow="Requirements"
-        title={area === "client" ? "Your requirements" : "Requirements queue"}
+        title={area === "client" ? "Your requirements" : area === "designer" ? "Assigned requirements" : "Requirements queue"}
         description={
           area === "client"
             ? "Track submitted creative requests from waiting queue through preview and delivery."
-            : "Pick up client requirements and turn them into active project workspaces."
+            : area === "designer"
+              ? "View requirements connected to projects where you have been added as a team member."
+              : "Review submitted client requirements and assign them to project workspaces."
         }
         actions={
           area === "client" && (
@@ -67,9 +71,10 @@ export function BriefsBrowsePage() {
         }
       />
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Waiting" value={waiting} icon="hourglass_top" helper="Ready for pickup" tone="tertiary" />
         <MetricCard label="In progress" value={inProgress} icon="draw" helper="Assigned to a professional" />
+        <MetricCard label="Pending" value={pending} icon="pending_actions" helper="Waiting for client approval" tone="tertiary" />
         <MetricCard label="Completed" value={completed} icon="check_circle" helper="Delivery approved" tone="secondary" />
       </div>
 
@@ -97,7 +102,9 @@ export function BriefsBrowsePage() {
           description={
             area === "client"
               ? "Create a new requirement to brief a professional and start the project flow."
-              : "There are no matching client requirements in the queue."
+              : area === "designer"
+                ? "You only see requirements from projects where you have been invited or assigned."
+                : "There are no matching client requirements in the queue."
           }
           action={
             area === "client" ? (

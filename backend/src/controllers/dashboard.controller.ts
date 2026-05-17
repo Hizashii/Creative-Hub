@@ -29,6 +29,28 @@ type FeedItem = {
   url?: string;
 };
 
+async function getVisibleBriefQuery(userId: Types.ObjectId, role: string): Promise<Record<string, unknown>> {
+  if (role === "client") return { clientId: userId };
+  if (role === "admin") return {};
+  if (role !== "designer") return { _id: { $in: [] } };
+
+  const projectIds = await getAccessibleProjectIds(userId, role);
+  if (projectIds.length === 0) return { _id: { $in: [] } };
+
+  const projects = await ProjectModel.find({
+    _id: { $in: projectIds },
+    briefId: { $exists: true, $ne: null },
+  })
+    .select("briefId")
+    .lean();
+
+  const briefIds = projects
+    .map((project) => project.briefId)
+    .filter((briefId): briefId is Types.ObjectId => briefId instanceof Types.ObjectId);
+
+  return { _id: { $in: briefIds } };
+}
+
 export const activityFeed = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
@@ -94,8 +116,7 @@ export const activityFeed = asyncHandler(async (req: Request, res: Response) => 
     }
   }
 
-  const briefQuery =
-    req.user.role === "client" ? { clientId: userId } : ({} as Record<string, unknown>);
+  const briefQuery = await getVisibleBriefQuery(userId, req.user.role);
   const briefs = await BriefModel.find(briefQuery).sort({ updatedAt: -1 }).limit(30).lean();
   for (const b of briefs) {
     const at = (b as { updatedAt?: Date; createdAt?: Date }).updatedAt ?? b.createdAt;
@@ -164,8 +185,7 @@ export const calendar = asyncHandler(async (req: Request, res: Response) => {
   const userId = parseObjectId(req.user.id, "user id");
   const ids = await getAccessibleProjectIds(userId, req.user.role);
 
-  const briefQuery =
-    req.user.role === "client" ? { clientId: userId } : ({} as Record<string, unknown>);
+  const briefQuery = await getVisibleBriefQuery(userId, req.user.role);
   const briefs = await BriefModel.find(briefQuery).select("title companyName deadline status").sort({ deadline: 1 }).lean();
 
   let tasks: unknown[] = [];
@@ -227,7 +247,7 @@ export const listDocuments = asyncHandler(async (req: Request, res: Response) =>
 
 export const listLeads = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  if (req.user.role === "client") {
+  if (req.user.role !== "admin") {
     res.json([]);
     return;
   }
@@ -329,5 +349,29 @@ export const listCollaborators = asyncHandler(async (req: Request, res: Response
       email: (u as { email: string }).email,
       role: (u as { role: string }).role,
     }))
+  );
+});
+
+export const listDesigners = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new ApiError(401, "Not authenticated");
+  if (req.user.role !== "designer" && req.user.role !== "admin") {
+    res.json([]);
+    return;
+  }
+
+  const users = await UserModel.find({ role: "designer" })
+    .select("name email role")
+    .sort({ name: 1 })
+    .lean();
+
+  res.json(
+    users
+      .filter((u) => String((u as { _id: Types.ObjectId })._id) !== req.user!.id)
+      .map((u) => ({
+        id: String((u as { _id: Types.ObjectId })._id),
+        name: (u as { name: string }).name,
+        email: (u as { email: string }).email,
+        role: (u as { role: string }).role,
+      }))
   );
 });

@@ -41,7 +41,7 @@ export const createFeedbackBody = z.object({
 export const createProjectBody = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  status: z.enum(["draft", "in_progress", "paused", "completed"]).optional(),
+  status: z.enum(["draft", "in_progress", "pending", "paused", "completed"]).optional(),
 });
 
 export const patchProjectBody = createProjectBody.partial();
