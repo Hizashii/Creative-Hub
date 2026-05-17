@@ -17,7 +17,7 @@ import invoiceRoutes from "./routes/invoices.routes";
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument as never));
 

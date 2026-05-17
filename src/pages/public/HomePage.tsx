@@ -7,7 +7,7 @@ const features = [
   { title: "Tasks & deadlines", text: "Assign work and keep the team aligned." },
   { title: "Files & handoff", text: "Keep assets tied to the right project." },
   { title: "Feedback & approvals", text: "Comments and approvals in one place." },
-  { title: "Role-based views", text: "Separate workspaces for clients, designers, and leads." },
+  { title: "Role-based views", text: "Separate workspaces for clients, designers, and admins." },
 ];
 
 export function HomePage() {
@@ -75,7 +75,7 @@ export function HomePage() {
         <div className="mx-auto max-w-3xl px-6 py-14 sm:py-16">
           <h2 className="text-xl font-bold text-slate-900">For teams</h2>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Designers see tasks, files, and deadlines in one place. Leads assign work and monitor
+            Designers see tasks, files, and deadlines in one place. Admins assign work and monitor
             delivery across projects.
           </p>
         </div>

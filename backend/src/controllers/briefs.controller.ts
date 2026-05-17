@@ -7,6 +7,7 @@ import { BriefModel } from "../models/brief.models";
 import { ProjectModel } from "../models/projects.models";
 import { ColumnModel } from "../models/columns.models";
 import { MemberModel } from "../models/project_memebers.models";
+import { UserModel } from "../models/user.models";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { parseObjectId } from "../utils/mongoose";
 import { updateBriefBody } from "../schemas/validation";
@@ -160,7 +161,12 @@ export const deleteBrief = asyncHandler(async (req: Request, res: Response) => {
 
 export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  if (req.user.role !== "admin" && req.user.role !== "designer") throw new ApiError(403, "Forbidden");
+  const currentUser = await UserModel.findById(req.user.id).select("role").lean();
+  if (!currentUser) throw new ApiError(401, "User not found");
+  const currentRole = (currentUser as { role: string }).role;
+  if (currentRole !== "admin" && currentRole !== "designer") {
+    throw new ApiError(403, "Only professionals can pick up requirements");
+  }
 
   const id = parseRequestObjectId(req, "id", "brief id");
   const { designerUserId } = req.body as { designerUserId?: string };
@@ -175,6 +181,7 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
   if (existingProject) throw new ApiError(400, "Brief already has a project");
 
   const ownerId = brief.clientId as Types.ObjectId;
+
   const project = await ProjectModel.create({
     title: brief.title,
     description: brief.description,
@@ -190,11 +197,13 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const assignedDesignerId =
-    req.user.role === "designer"
-      ? new Types.ObjectId(req.user.id)
+    currentRole === "admin" && designerUserId
+      ? parseObjectId(designerUserId, "designer id")
+      : currentRole === "admin"
+        ? null
       : designerUserId
         ? parseObjectId(designerUserId, "designer id")
-        : null;
+        : new Types.ObjectId(req.user.id);
 
   if (assignedDesignerId) {
     await MemberModel.create({

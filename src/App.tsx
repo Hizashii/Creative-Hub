@@ -23,7 +23,6 @@ import { CalendarPage } from "./pages/shared/CalendarPage";
 import { MyTasksPage } from "./pages/shared/MyTasksPage";
 import { DocumentsPage } from "./pages/shared/DocumentsPage";
 import { InvoicesPage } from "./pages/shared/InvoicesPage";
-import { LeadsPage } from "./pages/shared/LeadsPage";
 import { ClientsDirectoryPage } from "./pages/shared/ClientsDirectoryPage";
 import { CollaboratorsPage } from "./pages/shared/CollaboratorsPage";
 
@@ -83,7 +82,6 @@ function AppRoutes() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tasks" element={<MyTasksPage />} />
         <Route path="teams" element={<CollaboratorsPage />} />
-        <Route path="leads" element={<LeadsPage />} />
         <Route path="clients" element={<ClientsDirectoryPage />} />
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="documents" element={<DocumentsPage />} />
@@ -109,7 +107,6 @@ function AppRoutes() {
         <Route path="updates" element={<UpdatesPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tasks" element={<MyTasksPage />} />
-        <Route path="leads" element={<LeadsPage />} />
         <Route path="clients" element={<ClientsDirectoryPage />} />
         <Route path="invoices" element={<InvoicesPage />} />
         <Route path="documents" element={<DocumentsPage />} />

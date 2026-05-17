@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api/client";
+import { api, ApiRequestError } from "../../api/client";
 import type { DocumentRow } from "../../types/dashboard";
+import type { Asset, Project } from "../../types/domain";
 import { useDashboardNav } from "../../hooks/useDashboardNav";
 import { EmptyState, MetricCard, PageHeader, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatDate } from "../../utils/format";
@@ -11,30 +12,87 @@ function extensionLabel(filename: string) {
   return ext && ext !== filename.toUpperCase() ? ext : "FILE";
 }
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function DocumentsPage() {
   const { base } = useDashboardNav();
   const [rows, setRows] = useState<DocumentRow[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileLink, setFileLink] = useState("");
+  const [label, setLabel] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [documents, projectRows] = await Promise.all([
+        api<DocumentRow[]>("/dashboard/documents"),
+        api<Project[]>("/projects"),
+      ]);
+      setRows(documents);
+      setProjects(projectRows);
+      setSelectedProjectId((current) => current || projectRows[0]?.id || "");
+    } catch {
+      setRows([]);
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await api<DocumentRow[]>("/dashboard/documents");
-        if (!cancelled) setRows(data);
-      } catch {
-        if (!cancelled) setRows([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
     void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [load]);
+
+  async function saveDocument(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!selectedProjectId) {
+      setError("Select the project this file belongs to.");
+      return;
+    }
+    if (!selectedFile && !fileLink.trim()) {
+      setError("Attach a file or paste a file link.");
+      return;
+    }
+
+    const url = fileLink.trim() || (selectedFile ? await fileToDataUrl(selectedFile) : "");
+    const filename = label.trim() || selectedFile?.name || url.split("/").pop() || "Project attachment";
+
+    setSaving(true);
+    try {
+      await api<Asset>(`/projects/${selectedProjectId}/assets`, {
+        method: "POST",
+        body: JSON.stringify({
+          url,
+          filename,
+          tags: ["client-upload", "requirement-reference"],
+        }),
+      });
+      setSelectedFile(null);
+      setFileLink("");
+      setLabel("");
+      setFileInputKey((key) => key + 1);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not save document");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const filteredRows = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -69,36 +127,112 @@ export function DocumentsPage() {
       <PageHeader
         eyebrow="Library"
         title="Documents"
-        description="Centralized files from project workspaces, grouped by project and ready to open in context."
+        description="Attach images, videos, and reference files to the project that needs them."
         actions={
-          <>
-            <label className="relative block min-w-[240px]">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">
-                search
-              </span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-10 pr-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                placeholder="Search files"
-              />
-            </label>
-            <button
-              type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
-            >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              Upload file
-            </button>
-          </>
+          <label className="relative block min-w-[240px]">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">
+              search
+            </span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest pl-10 pr-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              placeholder="Search files"
+            />
+          </label>
         }
       />
 
       <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <MetricCard label="Documents" value={rows.length} icon="description" helper="Uploaded project assets" />
-        <MetricCard label="Projects" value={folders.length} icon="folder" helper="With shared files" tone="secondary" />
+        <MetricCard label="Projects" value={projects.length} icon="folder" helper="Available for upload" tone="secondary" />
         <MetricCard label="Tagged" value={taggedCount} icon="sell" helper="Files with metadata" tone="tertiary" />
       </div>
+
+      <SurfaceCard className="mb-8 overflow-hidden">
+        <div className="border-b border-outline-variant px-6 py-5">
+          <h2 className="text-headline-md font-semibold text-on-surface">Attach a file to a project</h2>
+          <p className="mt-1 text-body-sm text-on-surface-variant">
+            Select the project, upload the file or paste a hosted file link, then save it to the project documents.
+          </p>
+        </div>
+        <form onSubmit={(event) => void saveDocument(event)} className="grid gap-5 p-6 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)_auto] lg:items-end">
+          <label className="block">
+            <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              Project
+            </span>
+            <select
+              value={selectedProjectId}
+              onChange={(event) => setSelectedProjectId(event.target.value)}
+              className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              required
+            >
+              {projects.length === 0 && <option value="">No projects available</option>}
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              Upload file
+            </span>
+            <input
+              key={fileInputKey}
+              type="file"
+              accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setSelectedFile(file);
+                if (file && !label.trim()) setLabel(file.name);
+              }}
+              className="block h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest text-body-sm text-on-surface file:mr-3 file:h-full file:border-0 file:bg-primary file:px-3 file:text-label-md file:font-bold file:text-on-primary"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              File label
+            </span>
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              placeholder="Reference image"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={saving || projects.length === 0}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="material-symbols-outlined text-[18px]">save</span>
+            {saving ? "Saving..." : "Save"}
+          </button>
+
+          <label className="block lg:col-span-3">
+            <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+              Or paste a hosted file link
+            </span>
+            <input
+              value={fileLink}
+              onChange={(event) => setFileLink(event.target.value)}
+              className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              placeholder="https://example.com/reference.png"
+            />
+          </label>
+
+          {error && (
+            <div className="rounded-lg bg-error-container p-3 text-body-sm text-on-error-container lg:col-span-4">
+              {error}
+            </div>
+          )}
+        </form>
+      </SurfaceCard>
 
       {folders.length > 0 && (
         <section className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">

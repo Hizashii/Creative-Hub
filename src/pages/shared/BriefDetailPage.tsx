@@ -20,6 +20,7 @@ export function BriefDetailPage() {
   const [designerId, setDesignerId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -69,6 +70,20 @@ export function BriefDetailPage() {
       setError(err instanceof ApiRequestError ? err.message : "Could not pick up requirement");
     } finally {
       setAccepting(false);
+    }
+  }
+
+  async function deleteRequirement() {
+    if (!id || !window.confirm("Delete this requirement?")) return;
+    setError(null);
+    setDeleting(true);
+    try {
+      await api(`/briefs/${id}`, { method: "DELETE" });
+      navigate(`${base}/briefs`, { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not delete requirement");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -202,12 +217,22 @@ export function BriefDetailPage() {
           </SurfaceCard>
 
           {canEditClient && (
-            <Link
-              to={`${base}/briefs/${brief.id}/edit`}
-              className="flex h-11 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-label-md font-bold text-on-surface no-underline transition-colors hover:bg-surface-container-low"
-            >
-              Edit submission
-            </Link>
+            <div className="grid gap-3">
+              <Link
+                to={`${base}/briefs/${brief.id}/edit`}
+                className="flex h-11 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-label-md font-bold text-on-surface no-underline transition-colors hover:bg-surface-container-low"
+              >
+                Edit submission
+              </Link>
+              <button
+                type="button"
+                onClick={() => void deleteRequirement()}
+                disabled={deleting}
+                className="flex h-11 items-center justify-center rounded-lg border border-error-container bg-surface-container-lowest text-label-md font-bold text-error transition-colors hover:bg-error-container disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? "Deleting..." : "Delete request"}
+              </button>
+            </div>
           )}
 
           {brief.status === "in-progress" && user?.role === "client" && (
