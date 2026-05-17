@@ -4,13 +4,16 @@ import { api, ApiRequestError } from "../../api/client";
 import type { Brief, AdminUser } from "../../types/domain";
 import { BriefStatusBadge } from "../../components/briefs/BriefStatusBadge";
 import { useAuth } from "../../hooks/useAuth";
+import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
+import { formatCurrency, formatDate, titleize } from "../../utils/format";
 
 export function BriefDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const area = pathname.split("/")[1] || "client";
   const base = `/${area}`;
+  const created = new URLSearchParams(search).get("created") === "1";
   const { user } = useAuth();
   const [brief, setBrief] = useState<Brief | null>(null);
   const [designers, setDesigners] = useState<AdminUser[]>([]);
@@ -23,8 +26,8 @@ export function BriefDetailPage() {
     let cancelled = false;
     async function load() {
       try {
-        const b = await api<Brief>(`/briefs/${id}`);
-        if (!cancelled) setBrief(b);
+        const loaded = await api<Brief>(`/briefs/${id}`);
+        if (!cancelled) setBrief(loaded);
       } catch {
         if (!cancelled) setBrief(null);
       }
@@ -41,7 +44,7 @@ export function BriefDetailPage() {
     async function loadDesigners() {
       try {
         const users = await api<AdminUser[]>("/admin/users");
-        if (!cancelled) setDesigners(users.filter((u) => u.role === "designer"));
+        if (!cancelled) setDesigners(users.filter((item) => item.role === "designer"));
       } catch {
         if (!cancelled) setDesigners([]);
       }
@@ -59,11 +62,11 @@ export function BriefDetailPage() {
     try {
       const res = await api<{ project: { id: string } }>(`/briefs/${id}/accept`, {
         method: "POST",
-        body: JSON.stringify({ designerUserId: designerId || undefined }),
+        body: JSON.stringify({ designerUserId: user?.role === "admin" ? designerId || undefined : undefined }),
       });
       navigate(`${base}/projects/${res.project.id}`, { replace: true });
-    } catch (e) {
-      setError(e instanceof ApiRequestError ? e.message : "Could not accept brief");
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not pick up requirement");
     } finally {
       setAccepting(false);
     }
@@ -71,89 +74,200 @@ export function BriefDetailPage() {
 
   if (!brief) {
     return (
-      <div className="page">
-        <p>Loading or not found.</p>
-        <Link to={`${base}/briefs`}>Back</Link>
+      <div className="mx-auto max-w-4xl">
+        <EmptyState
+          icon="description"
+          title="Requirement not found"
+          description="The requirement may have been removed or you may not have access to it."
+          action={
+            <Link to={`${base}/briefs`} className="rounded-lg bg-primary px-4 py-2 text-label-md font-bold text-on-primary no-underline">
+              Back to requirements
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   const canEditClient = user?.role === "client" && brief.clientId === user.id && brief.status === "submitted";
+  const canPickUp = (user?.role === "designer" || user?.role === "admin") && brief.status === "submitted";
 
   return (
-    <div className="page" style={{ maxWidth: 800 }}>
-      <p>
-        <Link to={`${base}/briefs`}>← Requirements</Link>
-      </p>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{brief.title}</h1>
-          <p>
-            {brief.companyName} · {brief.designType.replace("-", " ")}
-          </p>
-        </div>
-        <BriefStatusBadge status={brief.status} />
-      </div>
+    <div className="mx-auto max-w-6xl">
+      <Link
+        to={`${base}/briefs`}
+        className="mb-6 inline-flex items-center gap-1 text-label-md font-bold text-on-surface-variant no-underline transition-colors hover:text-on-surface"
+      >
+        <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+        Requirements
+      </Link>
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Brief</h2>
-        <p>{brief.description}</p>
-        <p>
-          <strong>Audience:</strong> {brief.targetAudience}
-        </p>
-        <p>
-          <strong>Style:</strong> {brief.stylePreference}
-        </p>
-        <p>
-          <strong>Deadline:</strong> {new Date(brief.deadline).toLocaleString()}
-        </p>
-        {brief.budget != null && (
-          <p>
-            <strong>Budget:</strong> {brief.budget}
-          </p>
-        )}
-        {brief.references?.length > 0 && (
-          <div>
-            <strong>References</strong>
-            <ul>
-              {brief.references.map((r) => (
-                <li key={r}>
-                  <a href={r} target="_blank" rel="noreferrer">
-                    {r}
+      {created && (
+        <div className="mb-6 rounded-xl border border-tertiary-fixed bg-tertiary-fixed/60 p-5 text-tertiary">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-[24px]">hourglass_top</span>
+            <div>
+              <p className="font-bold">Requirement created.</p>
+              <p className="mt-1 text-body-sm">Waiting for a professional to pick it up!</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PageHeader
+        eyebrow={titleize(brief.designType)}
+        title={brief.title}
+        description={`${brief.companyName} requirement submitted for professional review.`}
+        actions={<BriefStatusBadge status={brief.status} />}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          {brief.status === "submitted" && (
+            <SurfaceCard className="p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-tertiary-fixed text-tertiary">
+                  <span className="material-symbols-outlined text-[26px]">hourglass_top</span>
+                </div>
+                <div>
+                  <h2 className="text-headline-md font-semibold text-on-surface">Waiting for a professional to pick it up!</h2>
+                  <p className="mt-2 text-body-sm text-on-surface-variant">
+                    The requirement is live in the queue. Once a professional accepts it, a project workspace will be created and assigned.
+                  </p>
+                </div>
+              </div>
+            </SurfaceCard>
+          )}
+
+          <SurfaceCard className="p-6">
+            <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Creative brief</h2>
+            <p className="whitespace-pre-wrap text-body-sm leading-6 text-on-surface-variant">{brief.description}</p>
+          </SurfaceCard>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <SurfaceCard className="p-5">
+              <p className="text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">Audience</p>
+              <p className="mt-2 text-body-sm text-on-surface">{brief.targetAudience}</p>
+            </SurfaceCard>
+            <SurfaceCard className="p-5">
+              <p className="text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">Style direction</p>
+              <p className="mt-2 whitespace-pre-wrap text-body-sm text-on-surface">{brief.stylePreference}</p>
+            </SurfaceCard>
+          </div>
+
+          {brief.references.length > 0 && (
+            <SurfaceCard className="p-5">
+              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">References</h2>
+              <div className="grid gap-2">
+                {brief.references.map((reference) => (
+                  <a
+                    key={reference}
+                    href={reference}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 rounded-lg border border-outline-variant px-3 py-2 text-body-sm text-primary no-underline hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                    <span className="truncate">{reference}</span>
                   </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {canEditClient && (
-        <Link to={`${base}/briefs/${brief.id}/edit`} className="btn btn-primary">
-          Edit submission
-        </Link>
-      )}
-
-      {user?.role === "admin" && brief.status === "submitted" && (
-        <div className="card" style={{ marginTop: "1rem" }}>
-          <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Accept and create project</h2>
-          {error && <div className="alert">{error}</div>}
-          <div className="field">
-            <label htmlFor="designer">Assign designer (optional)</label>
-            <select id="designer" className="select" value={designerId} onChange={(e) => setDesignerId(e.target.value)}>
-              <option value="">—</option>
-              {designers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="button" className="btn btn-primary" disabled={accepting} onClick={() => void accept()}>
-            {accepting ? "Working…" : "Accept brief"}
-          </button>
+                ))}
+              </div>
+            </SurfaceCard>
+          )}
         </div>
-      )}
+
+        <aside className="space-y-6">
+          <SurfaceCard className="p-5">
+            <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Summary</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3 border-b border-outline-variant pb-3">
+                <span className="text-body-sm text-on-surface-variant">Status</span>
+                <BriefStatusBadge status={brief.status} />
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-outline-variant pb-3">
+                <span className="text-body-sm text-on-surface-variant">Deadline</span>
+                <span className="text-body-sm font-semibold text-on-surface">{formatDate(brief.deadline)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-outline-variant pb-3">
+                <span className="text-body-sm text-on-surface-variant">Budget</span>
+                <span className="text-body-sm font-semibold text-on-surface">
+                  {brief.budget != null ? formatCurrency(brief.budget) : "Not set"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-body-sm text-on-surface-variant">Type</span>
+                <StatusPill tone="primary">{titleize(brief.designType)}</StatusPill>
+              </div>
+            </div>
+          </SurfaceCard>
+
+          {canEditClient && (
+            <Link
+              to={`${base}/briefs/${brief.id}/edit`}
+              className="flex h-11 items-center justify-center rounded-lg border border-outline-variant bg-surface-container-lowest text-label-md font-bold text-on-surface no-underline transition-colors hover:bg-surface-container-low"
+            >
+              Edit submission
+            </Link>
+          )}
+
+          {brief.status === "in-progress" && user?.role === "client" && (
+            <SurfaceCard className="p-5">
+              <h2 className="text-headline-md font-semibold text-on-surface">Picked up</h2>
+              <p className="mt-2 text-body-sm text-on-surface-variant">
+                A professional has picked this up. Open your projects area to follow the workspace and preview.
+              </p>
+              <Link
+                to={`${base}/projects`}
+                className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary no-underline"
+              >
+                View projects
+              </Link>
+            </SurfaceCard>
+          )}
+
+          {canPickUp && (
+            <SurfaceCard className="p-5">
+              <h2 className="mb-2 text-headline-md font-semibold text-on-surface">
+                {user?.role === "designer" ? "Pick up this project" : "Assign professional"}
+              </h2>
+              <p className="mb-4 text-body-sm text-on-surface-variant">
+                This creates a project workspace and assigns the selected professional.
+              </p>
+              {error && (
+                <div className="mb-4 rounded-lg bg-error-container p-3 text-body-sm text-on-error-container">{error}</div>
+              )}
+              {user?.role === "admin" && (
+                <label className="mb-4 block">
+                  <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                    Professional
+                  </span>
+                  <select
+                    className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    value={designerId}
+                    onChange={(event) => setDesignerId(event.target.value)}
+                  >
+                    <option value="">Assign later</option>
+                    {designers.map((designer) => (
+                      <option key={designer.id} value={designer.id}>
+                        {designer.name} ({designer.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                type="button"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={accepting}
+                onClick={() => void accept()}
+              >
+                <span className="material-symbols-outlined text-[18px]">work</span>
+                {accepting ? "Creating workspace..." : user?.role === "designer" ? "Pick it up" : "Create project"}
+              </button>
+            </SurfaceCard>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

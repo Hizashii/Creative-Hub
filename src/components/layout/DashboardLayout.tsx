@@ -32,6 +32,17 @@ function MobileDashboardNav({ area }: { area: UserRole }) {
   );
 }
 
+function DashboardFooter() {
+  return (
+    <footer className="border-t border-outline-variant bg-surface-bright px-4 py-6 pb-24 text-body-sm text-on-surface-variant sm:px-6 md:pb-6 lg:px-10">
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="font-semibold text-on-surface">Creative Hub</p>
+        <p>Project delivery, requirements, invoices, and client approvals in one workspace.</p>
+      </div>
+    </footer>
+  );
+}
+
 export function DashboardLayout({ area }: { area: UserRole }) {
   return (
     <div className="min-h-screen bg-background text-on-background">
@@ -41,6 +52,7 @@ export function DashboardLayout({ area }: { area: UserRole }) {
         <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:px-8 md:pb-10 lg:px-10">
           <Outlet />
         </main>
+        <DashboardFooter />
       </div>
       <MobileDashboardNav area={area} />
     </div>

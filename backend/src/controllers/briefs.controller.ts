@@ -160,7 +160,7 @@ export const deleteBrief = asyncHandler(async (req: Request, res: Response) => {
 
 export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  if (req.user.role !== "admin") throw new ApiError(403, "Forbidden");
+  if (req.user.role !== "admin" && req.user.role !== "designer") throw new ApiError(403, "Forbidden");
 
   const id = parseRequestObjectId(req, "id", "brief id");
   const { designerUserId } = req.body as { designerUserId?: string };
@@ -189,11 +189,17 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
     memberRole: "lead",
   });
 
-  if (designerUserId) {
-    const did = parseObjectId(designerUserId, "designer id");
+  const assignedDesignerId =
+    req.user.role === "designer"
+      ? new Types.ObjectId(req.user.id)
+      : designerUserId
+        ? parseObjectId(designerUserId, "designer id")
+        : null;
+
+  if (assignedDesignerId) {
     await MemberModel.create({
       projectId: project._id,
-      userId: did,
+      userId: assignedDesignerId,
       memberRole: "member",
     });
   }

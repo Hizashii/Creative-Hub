@@ -198,11 +198,14 @@ export function UpdatesPage() {
             </SurfaceCard>
 
             <SurfaceCard className="bg-primary p-6 text-on-primary">
-              <h2 className="mb-2 text-headline-md font-semibold">Project focus</h2>
-              <p className="text-body-sm text-on-primary/90">
-                Use updates to spot blockers before they turn into missed reviews or stale feedback.
-              </p>
-            </SurfaceCard>
+  <h2 className="mb-2 text-headline-md font-semibold text-black">
+    Project focus
+  </h2>
+
+  <p className="text-body-sm text-black">
+    Use updates to spot blockers before they turn into missed reviews or stale feedback.
+  </p>
+</SurfaceCard>
           </aside>
         </div>
       )}

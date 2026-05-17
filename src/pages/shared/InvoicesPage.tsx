@@ -18,6 +18,107 @@ const statusTone: Record<string, "primary" | "secondary" | "tertiary" | "error" 
   void: "error",
 };
 
+function ClientInvoiceDocuments({
+  invoices,
+  loading,
+  clientName,
+  clientEmail,
+}: {
+  invoices: InvoiceRow[];
+  loading: boolean;
+  clientName?: string;
+  clientEmail?: string;
+}) {
+  const paidInvoices = invoices.filter((invoice) => invoice.status === "paid");
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <PageHeader
+        eyebrow="Documents"
+        title="Paid invoice documents"
+        description="Only completed, paid invoices are shown here for your records."
+      />
+
+      {loading && <p className="text-body-sm text-on-surface-variant">Loading...</p>}
+
+      {!loading && paidInvoices.length === 0 && (
+        <EmptyState
+          icon="receipt_long"
+          title="No paid invoice documents yet"
+          description="Once payment is completed, your invoice document will appear here."
+        />
+      )}
+
+      <div className="space-y-6">
+        {paidInvoices.map((invoice) => (
+          <SurfaceCard key={invoice.id} className="overflow-hidden bg-white">
+            <div className="border-b border-outline-variant bg-surface-container-low px-6 py-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Invoice</p>
+                  <h2 className="mt-1 text-display-lg-mobile font-bold text-on-surface">{invoice.title}</h2>
+                  {invoice.projectTitle && (
+                    <p className="mt-1 text-body-sm text-on-surface-variant">{invoice.projectTitle}</p>
+                  )}
+                </div>
+                <StatusPill tone="secondary">Paid</StatusPill>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-8 grid gap-6 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                    Billed to
+                  </p>
+                  <p className="font-semibold text-on-surface">{clientName ?? "Client"}</p>
+                  {clientEmail && <p className="text-body-sm text-on-surface-variant">{clientEmail}</p>}
+                </div>
+                <div className="sm:text-right">
+                  <p className="mb-2 text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                    Document date
+                  </p>
+                  <p className="font-semibold text-on-surface">{formatDate(invoice.updatedAt ?? invoice.createdAt)}</p>
+                  <p className="text-body-sm text-on-surface-variant">Invoice #{invoice.id.slice(-6).toUpperCase()}</p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-outline-variant">
+                <div className="grid grid-cols-[1fr_120px] bg-surface-container-low px-4 py-3 text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                  <span>Description</span>
+                  <span className="text-right">Amount</span>
+                </div>
+                <div className="grid grid-cols-[1fr_120px] px-4 py-5 text-body-sm">
+                  <div>
+                    <p className="font-semibold text-on-surface">{invoice.title}</p>
+                    {invoice.description && <p className="mt-1 text-on-surface-variant">{invoice.description}</p>}
+                  </div>
+                  <p className="text-right font-semibold text-on-surface">
+                    {formatCurrency(invoice.amount, invoice.currency)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <div className="w-full max-w-xs space-y-3">
+                  <div className="flex justify-between text-body-sm text-on-surface-variant">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(invoice.amount, invoice.currency)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-outline-variant pt-3 text-headline-md font-bold text-on-surface">
+                    <span>Total paid</span>
+                    <span>{formatCurrency(invoice.amount, invoice.currency)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SurfaceCard>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function InvoicesPage() {
   const { user } = useAuth();
   const canEdit = user?.role === "admin" || user?.role === "designer";
@@ -38,12 +139,18 @@ export function InvoicesPage() {
 
   const refresh = useCallback(async () => {
     try {
+      if (!canEdit) {
+        const inv = await api<InvoiceRow[]>("/invoices");
+        setInvoices(inv);
+        setProjects([]);
+        setClients([]);
+        return;
+      }
+
       const [inv, proj, cli] = await Promise.all([
         api<InvoiceRow[]>("/invoices"),
         api<Project[]>("/projects"),
-        canEdit
-          ? api<ClientDirectoryRow[]>("/dashboard/clients").catch(() => [] as ClientDirectoryRow[])
-          : Promise.resolve([] as ClientDirectoryRow[]),
+        api<ClientDirectoryRow[]>("/dashboard/clients").catch(() => [] as ClientDirectoryRow[]),
       ]);
       setInvoices(inv);
       setProjects(proj);
@@ -84,6 +191,17 @@ export function InvoicesPage() {
     if (!invoice.dueDate || invoice.status === "paid" || invoice.status === "void") return false;
     return new Date(invoice.dueDate).getTime() < Date.now();
   });
+
+  if (!canEdit) {
+    return (
+      <ClientInvoiceDocuments
+        invoices={invoices}
+        loading={loading}
+        clientName={user?.name}
+        clientEmail={user?.email}
+      />
+    );
+  }
 
   async function createInvoice(event: FormEvent) {
     event.preventDefault();

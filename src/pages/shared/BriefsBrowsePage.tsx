@@ -1,14 +1,23 @@
 import { useLocation, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
-import type { Brief } from "../../types/domain";
+import type { Brief, BriefStatus } from "../../types/domain";
 import { BriefCard } from "../../components/briefs/BriefCard";
+import { EmptyState, MetricCard, PageHeader } from "../../components/dashboard/DashboardPrimitives";
+
+const filters: { id: "all" | BriefStatus; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "submitted", label: "Waiting" },
+  { id: "in-progress", label: "In progress" },
+  { id: "completed", label: "Completed" },
+];
 
 export function BriefsBrowsePage() {
   const { pathname } = useLocation();
   const area = pathname.split("/")[1] || "client";
   const base = `/${area}`;
   const [items, setItems] = useState<Brief[]>([]);
+  const [filter, setFilter] = useState<"all" | BriefStatus>("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -21,34 +30,90 @@ export function BriefsBrowsePage() {
       }
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const visible = useMemo(
+    () => items.filter((item) => filter === "all" || item.status === filter),
+    [filter, items],
+  );
+
+  const waiting = items.filter((item) => item.status === "submitted").length;
+  const inProgress = items.filter((item) => item.status === "in-progress").length;
+  const completed = items.filter((item) => item.status === "completed").length;
+
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-[32px] font-bold text-on-surface tracking-tight">Requirements</h1>
-          <p className="text-sm text-on-surface-variant mt-1">Guided submissions from clients and review history for the team.</p>
-        </div>
-        {area === "client" && (
-          <Link
-            to={`${base}/briefs/new`}
-            className="px-4 py-2 bg-primary text-on-primary text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm no-underline flex items-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            New requirement
-          </Link>
-        )}
+    <div className="mx-auto max-w-7xl">
+      <PageHeader
+        eyebrow="Requirements"
+        title={area === "client" ? "Your requirements" : "Requirements queue"}
+        description={
+          area === "client"
+            ? "Track submitted creative requests from waiting queue through preview and delivery."
+            : "Pick up client requirements and turn them into active project workspaces."
+        }
+        actions={
+          area === "client" && (
+            <Link
+              to={`${base}/briefs/new`}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary no-underline transition-opacity hover:opacity-90"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              New requirement
+            </Link>
+          )
+        }
+      />
+
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <MetricCard label="Waiting" value={waiting} icon="hourglass_top" helper="Ready for pickup" tone="tertiary" />
+        <MetricCard label="In progress" value={inProgress} icon="draw" helper="Assigned to a professional" />
+        <MetricCard label="Completed" value={completed} icon="check_circle" helper="Delivery approved" tone="secondary" />
       </div>
-      {items.length === 0 ? (
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 text-center">
-          <p className="text-sm text-on-surface-variant">No requirements yet.</p>
-        </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {filters.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setFilter(item.id)}
+            className={`rounded-full px-4 py-2 text-label-md font-bold transition-colors ${
+              filter === item.id
+                ? "bg-primary-container text-on-primary-container"
+                : "text-on-surface-variant hover:bg-surface-container-high"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          icon="inbox"
+          title="No requirements found"
+          description={
+            area === "client"
+              ? "Create a new requirement to brief a professional and start the project flow."
+              : "There are no matching client requirements in the queue."
+          }
+          action={
+            area === "client" ? (
+              <Link
+                to={`${base}/briefs/new`}
+                className="rounded-lg bg-primary px-4 py-2 text-label-md font-bold text-on-primary no-underline"
+              >
+                Create requirement
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {items.map((b) => (
-            <BriefCard key={b.id} brief={b} to={`${base}/briefs/${b.id}`} />
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {visible.map((brief) => (
+            <BriefCard key={brief.id} brief={brief} to={`${base}/briefs/${brief.id}`} />
           ))}
         </div>
       )}

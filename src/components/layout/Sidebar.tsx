@@ -59,21 +59,10 @@ export function Sidebar({ role }: { role: UserRole }) {
         </div>
       </div>
 
-      <div className="mt-auto space-y-1 border-t border-outline-variant pt-6">
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-on-surface-variant transition-colors hover:bg-surface-container-high"
-        >
-          <span className="material-symbols-outlined text-[20px]">settings</span>
-          <span className="text-label-md font-semibold">Settings</span>
-        </button>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-on-surface-variant transition-colors hover:bg-surface-container-high"
-        >
-          <span className="material-symbols-outlined text-[20px]">headset_mic</span>
-          <span className="text-label-md font-semibold">Support</span>
-        </button>
+      <div className="mt-auto border-t border-outline-variant pt-6">
+        <p className="px-4 text-label-sm leading-5 text-on-surface-variant">
+          Creative Hub workspace
+        </p>
       </div>
     </nav>
   );
