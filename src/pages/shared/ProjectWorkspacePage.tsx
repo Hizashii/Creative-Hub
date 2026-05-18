@@ -98,6 +98,7 @@ export function ProjectWorkspacePage() {
   useEffect(() => {
     if (!projectId) return;
     const t = window.setInterval(() => {
+      void api<Project>(`/projects/${projectId}`).then(setProject).catch(() => {});
       void api<FeedbackMessage[]>(`/projects/${projectId}/feedback`).then(setFeedback).catch(() => {});
     }, 5000);
     return () => window.clearInterval(t);

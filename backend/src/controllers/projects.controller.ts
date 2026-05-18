@@ -175,7 +175,7 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
     await updateLinkedBriefStatus(p.briefId, status === "in_progress" ? "in-progress" : status);
   }
   if (status === "completed") {
-    await recordProjectPayment(p as { _id: unknown; ownerId: unknown }, userId);
+    await recordProjectPayment(p as { _id: unknown; ownerId: unknown; price?: number | null }, userId);
   }
   res.json(projectJSON(p as Parameters<typeof projectJSON>[0]));
 });

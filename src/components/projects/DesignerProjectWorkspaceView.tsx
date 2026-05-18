@@ -57,6 +57,8 @@ export function DesignerProjectWorkspaceView({
 }: DesignerProjectWorkspaceViewProps) {
   const [selectedFileName, setSelectedFileName] = useState("");
   const [priceInput, setPriceInput] = useState(project.price != null ? String(project.price) : "");
+  const [priceError, setPriceError] = useState("");
+  const [priceSaved, setPriceSaved] = useState(false);
   const isAvailable = project.status === "draft";
   const hasReviewFile = assets.some((asset) => asset.tags.includes("preview"));
   const isPendingReview = project.status === "pending";
@@ -151,45 +153,66 @@ export function DesignerProjectWorkspaceView({
           {/* Pricing */}
           {!isAvailable && !isCompleted && (
             <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Quote</p>
-                  <h2 className="mt-1 text-headline-md font-semibold text-on-surface">Project price</h2>
-                  <p className="mt-1 text-body-sm text-on-surface-variant">
-                    {project.price != null
-                      ? `Current quote: $${project.price.toLocaleString()}`
-                      : "No price set yet — enter your quote below."}
-                  </p>
-                </div>
-                <form
-                  onSubmit={(e: FormEvent) => {
-                    e.preventDefault();
-                    const val = parseFloat(priceInput);
-                    if (!Number.isNaN(val) && val >= 0) void onSetPrice(val);
-                  }}
-                  className="flex items-center gap-2"
-                >
+              <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Quote</p>
+              <h2 className="mt-1 text-headline-md font-semibold text-on-surface">Project price</h2>
+              <p className="mt-1 mb-4 text-body-sm text-on-surface-variant">
+                {project.price != null
+                  ? `Current quote: $${project.price.toLocaleString()} — update below to revise.`
+                  : "Set a price for the client to review and accept before the project closes."}
+              </p>
+              <form
+                onSubmit={(e: FormEvent) => {
+                  e.preventDefault();
+                  const val = parseFloat(priceInput);
+                  if (priceInput.trim() === "" || Number.isNaN(val) || val < 0) {
+                    setPriceError("Enter a valid amount (0 or more).");
+                    return;
+                  }
+                  setPriceError("");
+                  void onSetPrice(val).then(() => {
+                    setPriceSaved(true);
+                    setTimeout(() => setPriceSaved(false), 2500);
+                  });
+                }}
+                className="flex flex-col gap-2 sm:flex-row sm:items-start"
+              >
+                <div className="flex flex-col gap-1">
                   <div className="relative">
                     <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-on-surface-variant text-body-sm">$</span>
                     <input
                       type="number"
                       min="0"
                       step="1"
-                      className="h-10 w-36 rounded-lg border border-outline-variant bg-surface-container-lowest pl-7 pr-3 text-body-sm text-on-surface outline-none placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      placeholder="0"
+                      className={`h-10 w-44 rounded-lg border bg-surface-container-lowest pl-7 pr-3 text-body-sm text-on-surface outline-none focus:ring-2 focus:ring-primary/20 ${priceError ? "border-error focus:border-error" : "border-outline-variant focus:border-primary"}`}
+                      placeholder="e.g. 500"
                       value={priceInput}
-                      onChange={(e) => setPriceInput(e.target.value)}
+                      onChange={(e) => { setPriceInput(e.target.value); setPriceError(""); setPriceSaved(false); }}
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={priceUpdatePending || priceInput === ""}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {priceUpdatePending ? "Saving…" : "Set quote"}
-                  </button>
-                </form>
-              </div>
+                  {priceError && (
+                    <p className="text-label-sm text-error">{priceError}</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={priceUpdatePending}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {priceUpdatePending ? (
+                    <>
+                      <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                      Saving…
+                    </>
+                  ) : priceSaved ? (
+                    <>
+                      <span className="material-symbols-outlined text-[16px]">check</span>
+                      Saved!
+                    </>
+                  ) : (
+                    "Set quote"
+                  )}
+                </button>
+              </form>
             </section>
           )}
 

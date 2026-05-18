@@ -70,8 +70,8 @@ export const listInvoices = asyncHandler(async (req: Request, res: Response) => 
 
   const completedProjectFilter: Record<string, unknown> = { status: "completed" };
   if (paymentProjectIds) completedProjectFilter._id = { $in: paymentProjectIds };
-  const completedProjects = await ProjectModel.find(completedProjectFilter).select("ownerId").lean();
-  await ensurePaidInvoicesForProjects(completedProjects as Array<{ _id: unknown; ownerId: unknown }>);
+  const completedProjects = await ProjectModel.find(completedProjectFilter).select("ownerId price").lean();
+  await ensurePaidInvoicesForProjects(completedProjects as Array<{ _id: unknown; ownerId: unknown; price?: number | null }>);
 
   const rows = await InvoiceModel.find(filter).sort({ createdAt: -1 }).limit(200).lean();
   const projectIds = [...new Set(rows.map((r) => (r.projectId ? String(r.projectId) : null)).filter(Boolean))] as string[];

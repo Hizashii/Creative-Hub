@@ -38,6 +38,6 @@ export async function recordProjectPayment(
   }
 }
 
-export async function ensurePaidInvoicesForProjects(projects: Array<{ _id: unknown; ownerId: unknown }>) {
+export async function ensurePaidInvoicesForProjects(projects: Array<{ _id: unknown; ownerId: unknown; price?: number | null }>) {
   await Promise.all(projects.map((project) => recordProjectPayment(project)));
 }
