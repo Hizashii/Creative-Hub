@@ -144,6 +144,7 @@ export const createBrief = asyncHandler(async (req: Request, res: Response) => {
       status: "draft",
       ownerId,
       briefId: brief._id,
+      price: brief.budget ?? undefined,
     });
     await MemberModel.create({ projectId: project._id, userId: ownerId, memberRole: "lead" });
     const defaultColumns = ["Backlog", "In progress", "Review", "Done"];
@@ -251,6 +252,7 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
       status: "in_progress",
       ownerId,
       briefId: brief._id,
+      price: brief.budget ?? undefined,
     });
     await MemberModel.create({ projectId: project._id, userId: ownerId, memberRole: "lead" });
     const defaultColumns = ["Backlog", "In progress", "Review", "Done"];

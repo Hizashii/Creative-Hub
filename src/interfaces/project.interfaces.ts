@@ -6,6 +6,7 @@ import type { Asset, Column, FeedbackMessage, Project, ProjectMember, Task } fro
 export interface ProjectCardProps {
   project: Project;
   to: string;
+  onPreview?: (project: Project) => void;
 }
 
 export interface ProjectStatusDisplayConfig {
@@ -52,6 +53,7 @@ export interface DesignerProjectWorkspaceViewProps {
   newTaskCol: string;
   requestPending: boolean;
   pickUpPending: boolean;
+  priceUpdatePending: boolean;
   onFileUrlChange: (value: string) => void;
   onFileNameChange: (value: string) => void;
   onUploadFile: (event: FormEvent<HTMLFormElement>) => void;
@@ -62,4 +64,5 @@ export interface DesignerProjectWorkspaceViewProps {
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onRequestReview: () => void;
   onPickUp: () => void;
+  onSetPrice: (price: number) => Promise<void>;
 }

@@ -21,8 +21,6 @@ function isImageAsset(asset: Asset) {
   return asset.url.startsWith("data:image") || /\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/i.test(asset.url);
 }
 
-const deliveryPrice = 49;
-
 const paymentOptions: ClientPaymentOption[] = [
   { id: "card", label: "Card", detail: "Visa, Mastercard, or debit card", icon: "credit_card" },
   { id: "wallet", label: "Digital wallet", detail: "Fast checkout with saved wallet", icon: "account_balance_wallet" },
@@ -206,6 +204,7 @@ export function ClientProjectWorkspaceView({
     .filter((asset) => isDesignerAsset(asset, members))
     .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
   const canDownload = project.status === "completed";
+  const deliveryPrice = project.price ?? 0;
   const steps = buildProjectProgressSteps(project, designerAssets.length > 0, changesRequested);
 
   async function payInvoiceAndApprove() {
@@ -299,7 +298,9 @@ export function ClientProjectWorkspaceView({
                       <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Invoice sent</p>
                       <h2 className="mt-1 text-headline-md font-semibold text-on-surface">Final approval invoice</h2>
                       <p className="mt-1 text-body-sm text-on-surface-variant">
-                        The invoice has been sent to your account automatically. Pay it to complete review and unlock every file.
+                        {deliveryPrice > 0
+                          ? `Pay ${formatCurrency(deliveryPrice)} to complete review and unlock every file.`
+                          : "Pay to complete review and unlock every file."}
                       </p>
                     </div>
                     <button

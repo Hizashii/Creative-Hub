@@ -67,6 +67,7 @@ export function ProjectWorkspacePage() {
   const [completionPending, setCompletionPending] = useState(false);
   const [approvalPending, setApprovalPending] = useState(false);
   const [pickUpPending, setPickUpPending] = useState(false);
+  const [priceUpdatePending, setPriceUpdatePending] = useState(false);
   const [changesRequested, setChangesRequested] = useState(false);
 
   const load = useCallback(async () => {
@@ -223,6 +224,23 @@ export function ProjectWorkspacePage() {
     }
   }
 
+  async function setPrice(price: number) {
+    if (!projectId) return;
+    setError(null);
+    setPriceUpdatePending(true);
+    try {
+      const updated = await api<Project>(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ price }),
+      });
+      setProject(updated);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not update price");
+    } finally {
+      setPriceUpdatePending(false);
+    }
+  }
+
   async function addTask(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !newTaskTitle.trim() || !newTaskCol) return;
@@ -314,6 +332,7 @@ export function ProjectWorkspacePage() {
         newTaskCol={newTaskCol}
         requestPending={completionPending}
         pickUpPending={pickUpPending}
+        priceUpdatePending={priceUpdatePending}
         onFileUrlChange={setPreviewUrl}
         onFileNameChange={setPreviewName}
         onUploadFile={sendPreview}
@@ -324,6 +343,7 @@ export function ProjectWorkspacePage() {
         onSendMessage={sendMessage}
         onRequestReview={() => void submitCompletion()}
         onPickUp={() => void pickUp()}
+        onSetPrice={setPrice}
       />
     );
   }

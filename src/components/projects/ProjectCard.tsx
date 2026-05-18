@@ -17,15 +17,13 @@ const PROGRESS: Record<string, number> = {
   draft: 20,
 };
 
-export function ProjectCard({ project, to }: ProjectCardProps) {
+export function ProjectCard({ project, to, onPreview }: ProjectCardProps) {
   const s = STATUS[project.status] ?? STATUS.draft;
   const pct = PROGRESS[project.status] ?? 20;
+  const isPickable = project.status === "draft" && Boolean(onPreview);
 
-  return (
-    <Link
-      to={to}
-      className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:shadow-md transition-shadow flex flex-col no-underline group"
-    >
+  const body = (
+    <>
       <div className="flex justify-between items-start mb-4">
         <h3 className="text-base font-semibold text-on-surface group-hover:text-primary transition-colors leading-snug flex-1 mr-2">
           {project.title}
@@ -51,6 +49,33 @@ export function ProjectCard({ project, to }: ProjectCardProps) {
           <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
+
+      {isPickable && (
+        <div className="mt-4 pt-3 border-t border-outline-variant flex items-center justify-between">
+          <span className="text-xs text-on-surface-variant">Click to preview &amp; accept</span>
+          <span className="material-symbols-outlined text-[18px] text-primary">arrow_forward</span>
+        </div>
+      )}
+    </>
+  );
+
+  if (isPickable) {
+    return (
+      <div
+        onClick={() => onPreview!(project)}
+        className="cursor-pointer bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:shadow-md hover:border-primary transition-all flex flex-col group"
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 hover:shadow-md transition-shadow flex flex-col no-underline group"
+    >
+      {body}
     </Link>
   );
 }

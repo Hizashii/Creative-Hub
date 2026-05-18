@@ -22,6 +22,7 @@ function projectJSON(p: {
   status: string;
   ownerId: unknown;
   briefId?: unknown;
+  price?: number | null;
   createdAt?: Date;
   updatedAt?: Date;
 }) {
@@ -32,6 +33,7 @@ function projectJSON(p: {
     status: p.status,
     ownerId: String(p.ownerId),
     briefId: p.briefId ? String(p.briefId) : undefined,
+    price: p.price ?? undefined,
     createdAt: p.createdAt?.toISOString(),
     updatedAt: p.updatedAt?.toISOString(),
   };
@@ -145,18 +147,27 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
 
   const userId = parseObjectId(req.user.id, "user id");
   const isOwner = existing.ownerId?.equals(userId);
-  if (req.user.role !== "admin" && !isOwner) throw new ApiError(403, "Forbidden");
+  const isMember = await MemberModel.exists({ projectId: id, userId });
+  const isDesignerMember = req.user.role === "designer" && Boolean(isMember);
 
-  const { title, description, status } = req.body as {
+  if (req.user.role !== "admin" && !isOwner && !isDesignerMember) {
+    throw new ApiError(403, "Forbidden");
+  }
+
+  const { title, description, status, price } = req.body as {
     title?: string;
     description?: string;
     status?: ProjectStatusInput;
+    price?: number;
   };
 
   const updates: Record<string, unknown> = {};
-  if (title !== undefined) updates.title = title;
-  if (description !== undefined) updates.description = description;
-  if (status !== undefined) updates.status = status;
+  if (title !== undefined && (isOwner || req.user.role === "admin")) updates.title = title;
+  if (description !== undefined && (isOwner || req.user.role === "admin")) updates.description = description;
+  if (status !== undefined && (isOwner || req.user.role === "admin" || isDesignerMember)) updates.status = status;
+  if (price !== undefined && (req.user.role === "designer" || req.user.role === "admin")) {
+    updates.price = price;
+  }
 
   const p = await ProjectModel.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
   if (!p) throw new ApiError(404, "Project not found");

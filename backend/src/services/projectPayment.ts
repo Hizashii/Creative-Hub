@@ -2,13 +2,14 @@ import { Types } from "mongoose";
 import { FeedbackModel } from "../models/feedback.models";
 import { InvoiceModel } from "../models/invoice.models";
 
-const finalApprovalInvoiceAmount = 49;
+const fallbackInvoiceAmount = 0;
 export const paidUpMessage = "It's all paid up!";
 
 export async function recordProjectPayment(
-  project: { _id: unknown; ownerId: unknown },
+  project: { _id: unknown; ownerId: unknown; price?: number | null },
   actorId = new Types.ObjectId(String(project.ownerId)),
 ) {
+  const amount = project.price ?? fallbackInvoiceAmount;
   await InvoiceModel.findOneAndUpdate(
     { projectId: project._id, title: "Final approval payment" },
     {
@@ -18,7 +19,7 @@ export async function recordProjectPayment(
         projectId: project._id,
         title: "Final approval payment",
         description: `${paidUpMessage} Payment received and project files are unlocked.`,
-        amount: finalApprovalInvoiceAmount,
+        amount,
         currency: "USD",
         status: "paid",
         dueDate: new Date(),

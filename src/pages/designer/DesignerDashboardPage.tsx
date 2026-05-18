@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import type { Brief, Project } from "../../types/domain";
 import { ProjectCard } from "../../components/projects/ProjectCard";
+import { ProjectPreviewModal } from "../../components/projects/ProjectPreviewModal";
 import { formatDate, titleize } from "../../utils/format";
 
 export function DesignerDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
 
   const load = useCallback(async () => {
     const [p, b] = await Promise.all([
@@ -90,7 +92,7 @@ export function DesignerDashboardPage() {
               )}
             </h2>
             <p className="mt-1 text-sm text-on-surface-variant">
-              New client requests waiting for a designer — click to open and pick up.
+              New client requests waiting for a designer — click to preview and accept.
             </p>
           </div>
           <Link to="/designer/briefs" className="text-xs font-semibold text-primary hover:underline no-underline">
@@ -107,7 +109,12 @@ export function DesignerDashboardPage() {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {/* Draft projects (new flow) */}
             {draftProjects.map((p) => (
-              <ProjectCard key={p.id} project={p} to={`/designer/projects/${p.id}`} />
+              <ProjectCard
+                key={p.id}
+                project={p}
+                to={`/designer/projects/${p.id}`}
+                onPreview={setPreviewProject}
+              />
             ))}
 
             {/* Submitted briefs without a project yet (old data) */}
@@ -175,6 +182,15 @@ export function DesignerDashboardPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {previewProject && (
+        <ProjectPreviewModal
+          project={previewProject}
+          area="designer"
+          onClose={() => setPreviewProject(null)}
+          onAccepted={() => { setPreviewProject(null); void load(); }}
+        />
       )}
     </div>
   );

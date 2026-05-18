@@ -9,6 +9,7 @@ export type Project = {
   status: ProjectStatus;
   ownerId: string;
   briefId?: string;
+  price?: number;
   createdAt?: string;
   updatedAt?: string;
 };

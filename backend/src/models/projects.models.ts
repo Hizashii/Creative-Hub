@@ -13,6 +13,7 @@ const projectSchema = new Schema(
     },
     ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     briefId: { type: Schema.Types.ObjectId, ref: "Brief", required: false },
+    price: { type: Number, required: false },
   },
   { timestamps: true }
 );

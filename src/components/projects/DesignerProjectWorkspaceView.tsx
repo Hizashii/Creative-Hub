@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Task } from "../../types/domain";
@@ -42,6 +42,7 @@ export function DesignerProjectWorkspaceView({
   newTaskCol,
   requestPending,
   pickUpPending,
+  priceUpdatePending,
   onFileUrlChange,
   onFileNameChange,
   onUploadFile,
@@ -52,8 +53,10 @@ export function DesignerProjectWorkspaceView({
   onSendMessage,
   onRequestReview,
   onPickUp,
+  onSetPrice,
 }: DesignerProjectWorkspaceViewProps) {
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [priceInput, setPriceInput] = useState(project.price != null ? String(project.price) : "");
   const isAvailable = project.status === "draft";
   const hasReviewFile = assets.some((asset) => asset.tags.includes("preview"));
   const isPendingReview = project.status === "pending";
@@ -145,6 +148,51 @@ export function DesignerProjectWorkspaceView({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
+          {/* Pricing */}
+          {!isAvailable && !isCompleted && (
+            <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Quote</p>
+                  <h2 className="mt-1 text-headline-md font-semibold text-on-surface">Project price</h2>
+                  <p className="mt-1 text-body-sm text-on-surface-variant">
+                    {project.price != null
+                      ? `Current quote: $${project.price.toLocaleString()}`
+                      : "No price set yet — enter your quote below."}
+                  </p>
+                </div>
+                <form
+                  onSubmit={(e: FormEvent) => {
+                    e.preventDefault();
+                    const val = parseFloat(priceInput);
+                    if (!Number.isNaN(val) && val >= 0) void onSetPrice(val);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-on-surface-variant text-body-sm">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="h-10 w-36 rounded-lg border border-outline-variant bg-surface-container-lowest pl-7 pr-3 text-body-sm text-on-surface outline-none placeholder:text-outline focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      placeholder="0"
+                      value={priceInput}
+                      onChange={(e) => setPriceInput(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={priceUpdatePending || priceInput === ""}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {priceUpdatePending ? "Saving…" : "Set quote"}
+                  </button>
+                </form>
+              </div>
+            </section>
+          )}
+
           <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
             <div className="border-b border-outline-variant px-6 py-4">
               <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Project files</p>

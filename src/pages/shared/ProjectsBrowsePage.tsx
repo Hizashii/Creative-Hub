@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { api } from "../../api/client";
 import type { Brief, Project } from "../../types/domain";
 import { ProjectCard } from "../../components/projects/ProjectCard";
+import { ProjectPreviewModal } from "../../components/projects/ProjectPreviewModal";
 import { formatDate, titleize } from "../../utils/format";
 
 export function ProjectsBrowsePage() {
@@ -12,22 +13,30 @@ export function ProjectsBrowsePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [filter, setFilter] = useState<string>("all");
+  const [previewProject, setPreviewProject] = useState<Project | null>(null);
+
+  async function load() {
+    const [list, b] = await Promise.all([
+      (area === "admin" ? api<Project[]>("/admin/projects") : api<Project[]>("/projects")).catch(() => [] as Project[]),
+      area === "designer" ? api<Brief[]>("/briefs").catch(() => [] as Brief[]) : Promise.resolve([] as Brief[]),
+    ]);
+    setProjects(list);
+    setBriefs(b);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function doLoad() {
       const [list, b] = await Promise.all([
         (area === "admin" ? api<Project[]>("/admin/projects") : api<Project[]>("/projects")).catch(() => [] as Project[]),
         area === "designer" ? api<Brief[]>("/briefs").catch(() => [] as Brief[]) : Promise.resolve([] as Brief[]),
       ]);
-      if (!cancelled) {
-        setProjects(list);
-        setBriefs(b);
-      }
+      if (!cancelled) { setProjects(list); setBriefs(b); }
     }
-    void load();
-    const interval = window.setInterval(() => { void load(); }, 10000);
+    void doLoad();
+    const interval = window.setInterval(() => { void doLoad(); }, 10000);
     return () => { cancelled = true; window.clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [area]);
 
   // Submitted briefs that don't yet have a matching draft project
@@ -135,10 +144,24 @@ export function ProjectsBrowsePage() {
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((p) => (
-            <ProjectCard key={p.id} project={p} to={`${base}/projects/${p.id}`} />
+            <ProjectCard
+              key={p.id}
+              project={p}
+              to={`${base}/projects/${p.id}`}
+              onPreview={area === "designer" ? setPreviewProject : undefined}
+            />
           ))}
         </div>
       ) : null}
+
+      {previewProject && (
+        <ProjectPreviewModal
+          project={previewProject}
+          area={area}
+          onClose={() => setPreviewProject(null)}
+          onAccepted={() => { setPreviewProject(null); void load(); }}
+        />
+      )}
     </div>
   );
 }
