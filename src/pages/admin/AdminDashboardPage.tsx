@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import type { Project, Brief, AdminUser } from "../../types/domain";
+import type { AdminDashboardCounts } from "../../types/dashboard";
+import type { Tone } from "../../types/ui";
 import { EmptyState, MetricCard, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatDate, titleize } from "../../utils/format";
 
-type Counts = { projects: number; briefs: number; users: number; inProgress: number };
-
-const statusTone: Record<Project["status"], "primary" | "secondary" | "tertiary" | "neutral"> = {
+const statusTone: Record<Project["status"], Tone> = {
   in_progress: "primary",
   pending: "tertiary",
   completed: "secondary",
@@ -16,7 +16,7 @@ const statusTone: Record<Project["status"], "primary" | "secondary" | "tertiary"
 };
 
 export function AdminDashboardPage() {
-  const [counts, setCounts] = useState<Counts>({ projects: 0, briefs: 0, users: 0, inProgress: 0 });
+  const [counts, setCounts] = useState<AdminDashboardCounts>({ projects: 0, briefs: 0, users: 0, inProgress: 0 });
   const [projects, setProjects] = useState<Project[]>([]);
   const [briefs, setBriefs] = useState<Brief[]>([]);
 

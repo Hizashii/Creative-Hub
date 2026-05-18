@@ -1,11 +1,5 @@
 import type { UserRole } from "../../types/roles";
-
-export type NavItem = {
-  to: string;
-  label: string;
-  icon: string;
-  badge?: string;
-};
+import type { NavItem } from "../../interfaces/navigation.interfaces";
 
 export const DASHBOARD_NAV: Record<UserRole, NavItem[]> = {
   admin: [

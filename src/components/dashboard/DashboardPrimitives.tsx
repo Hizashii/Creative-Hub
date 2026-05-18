@@ -1,6 +1,12 @@
-import type { ReactNode } from "react";
-
-type Tone = "primary" | "secondary" | "tertiary" | "error" | "neutral";
+import type {
+  EmptyStateProps,
+  IconButtonProps,
+  MetricCardProps,
+  PageHeaderProps,
+  StatusPillProps,
+  SurfaceCardProps,
+} from "../../interfaces/dashboard.interfaces";
+import type { Tone } from "../../types/ui";
 
 const toneClasses: Record<Tone, string> = {
   primary: "bg-primary-container text-on-primary-container",
@@ -16,13 +22,6 @@ const iconToneClasses: Record<Tone, string> = {
   tertiary: "bg-tertiary-fixed text-tertiary",
   error: "bg-error-container text-error",
   neutral: "bg-surface-container-high text-on-surface-variant",
-};
-
-type PageHeaderProps = {
-  eyebrow?: string;
-  title: string;
-  description: string;
-  actions?: ReactNode;
 };
 
 export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
@@ -44,14 +43,6 @@ export function PageHeader({ eyebrow, title, description, actions }: PageHeaderP
   );
 }
 
-type MetricCardProps = {
-  label: string;
-  value: ReactNode;
-  icon: string;
-  helper?: ReactNode;
-  tone?: Tone;
-};
-
 export function MetricCard({ label, value, icon, helper, tone = "primary" }: MetricCardProps) {
   return (
     <section className="rounded-xl border border-outline-variant bg-surface-container-lowest p-5 shadow-sm">
@@ -69,11 +60,6 @@ export function MetricCard({ label, value, icon, helper, tone = "primary" }: Met
   );
 }
 
-type SurfaceCardProps = {
-  children: ReactNode;
-  className?: string;
-};
-
 export function SurfaceCard({ children, className = "" }: SurfaceCardProps) {
   return (
     <section className={`rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm ${className}`}>
@@ -82,11 +68,6 @@ export function SurfaceCard({ children, className = "" }: SurfaceCardProps) {
   );
 }
 
-type StatusPillProps = {
-  children: ReactNode;
-  tone?: Tone;
-};
-
 export function StatusPill({ children, tone = "neutral" }: StatusPillProps) {
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-label-sm font-bold capitalize ${toneClasses[tone]}`}>
@@ -94,13 +75,6 @@ export function StatusPill({ children, tone = "neutral" }: StatusPillProps) {
     </span>
   );
 }
-
-type EmptyStateProps = {
-  icon: string;
-  title: string;
-  description: string;
-  action?: ReactNode;
-};
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
@@ -114,14 +88,6 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
     </div>
   );
 }
-
-type IconButtonProps = {
-  icon: string;
-  label: string;
-  onClick?: () => void;
-  type?: "button" | "submit";
-  className?: string;
-};
 
 export function IconButton({ icon, label, onClick, type = "button", className = "" }: IconButtonProps) {
   return (

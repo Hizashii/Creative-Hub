@@ -2,9 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
 import type { Brief, DesignType } from "../../types/domain";
+import type { DesignTypeOption } from "../../interfaces/brief.interfaces";
 import { PageHeader, SurfaceCard } from "../dashboard/DashboardPrimitives";
 
-const designTypes: { value: DesignType; label: string; icon: string; description: string }[] = [
+const designTypes: DesignTypeOption[] = [
   { value: "logo", label: "Logo", icon: "signature", description: "Marks, symbols, and identity lockups." },
   { value: "poster", label: "Poster", icon: "newspaper", description: "Campaign posters and event visuals." },
   { value: "branding", label: "Branding", icon: "palette", description: "Full visual identity direction." },

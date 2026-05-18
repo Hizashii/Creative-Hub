@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { api, ApiRequestError } from "../../api/client";
 import type { CollaboratorRow, DesignerDirectoryRow } from "../../types/dashboard";
 import type { Project } from "../../types/domain";
@@ -68,7 +68,7 @@ export function CollaboratorsPage() {
   const designerCount = rows.filter((row) => row.role === "designer").length;
   const clients = rows.filter((row) => row.role === "client").length;
 
-  async function inviteDesigner(event: React.FormEvent) {
+  async function inviteDesigner(event: FormEvent) {
     event.preventDefault();
     if (!selectedProjectId || !selectedDesigner) return;
 

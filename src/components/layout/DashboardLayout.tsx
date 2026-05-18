@@ -1,11 +1,11 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
-import type { UserRole } from "../../types/roles";
 import { DASHBOARD_NAV } from "./dashboardNav";
 import { LogoMark } from "../LogoMark";
+import type { DashboardLayoutProps, MobileDashboardNavProps } from "../../interfaces/layout.interfaces";
 
-function MobileDashboardNav({ area }: { area: UserRole }) {
+function MobileDashboardNav({ area }: MobileDashboardNavProps) {
   const items = DASHBOARD_NAV[area].slice(0, 5);
 
   return (
@@ -47,7 +47,7 @@ function DashboardFooter() {
   );
 }
 
-export function DashboardLayout({ area }: { area: UserRole }) {
+export function DashboardLayout({ area }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background text-on-background">
       <Sidebar role={area} />

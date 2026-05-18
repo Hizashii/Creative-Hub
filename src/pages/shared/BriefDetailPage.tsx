@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
-import type { Brief, AdminUser } from "../../types/domain";
+import type { AcceptBriefResponse, AdminUser, Brief } from "../../types/domain";
+import type { ProjectLinkCopy } from "../../interfaces/brief.interfaces";
+import type { BriefRouteParams } from "../../types/routes";
 import { BriefStatusBadge } from "../../components/briefs/BriefStatusBadge";
 import { useAuth } from "../../hooks/useAuth";
 import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, titleize } from "../../utils/format";
 
 export function BriefDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<BriefRouteParams>();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const area = pathname.split("/")[1] || "client";
@@ -61,7 +63,7 @@ export function BriefDetailPage() {
     setError(null);
     setAccepting(true);
     try {
-      const res = await api<{ project: { id: string } }>(`/briefs/${id}/accept`, {
+      const res = await api<AcceptBriefResponse>(`/briefs/${id}/accept`, {
         method: "POST",
         body: JSON.stringify({ designerUserId: user?.role === "admin" ? designerId || undefined : undefined }),
       });
@@ -108,7 +110,7 @@ export function BriefDetailPage() {
   const canPickUp = user?.role === "admin" && brief.status === "submitted";
   const showClientProjectLink =
     user?.role === "client" && ["in-progress", "pending", "completed"].includes(brief.status);
-  const projectLinkCopy: Record<string, { title: string; body: string }> = {
+  const projectLinkCopy: Record<string, ProjectLinkCopy> = {
     "in-progress": {
       title: "Picked up",
       body: "A professional has picked this up. Open your projects area to follow the workspace and preview.",

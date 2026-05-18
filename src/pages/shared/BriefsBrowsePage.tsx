@@ -2,10 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type { Brief, BriefStatus } from "../../types/domain";
+import type { BriefFilterOption } from "../../interfaces/brief.interfaces";
 import { BriefCard } from "../../components/briefs/BriefCard";
 import { EmptyState, MetricCard, PageHeader } from "../../components/dashboard/DashboardPrimitives";
 
-const filters: { id: "all" | BriefStatus; label: string }[] = [
+const filters: BriefFilterOption[] = [
   { id: "all", label: "All" },
   { id: "submitted", label: "Waiting" },
   { id: "in-progress", label: "In progress" },

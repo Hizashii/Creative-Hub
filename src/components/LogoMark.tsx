@@ -1,6 +1,4 @@
-type LogoMarkProps = {
-  className?: string;
-};
+import type { LogoMarkProps } from "../interfaces/layout.interfaces";
 
 export function LogoMark({ className = "h-9 w-9" }: LogoMarkProps) {
   return (

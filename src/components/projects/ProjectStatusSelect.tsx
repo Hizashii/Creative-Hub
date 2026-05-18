@@ -1,15 +1,12 @@
 import type { Project } from "../../types/domain";
 import { api } from "../../api/client";
+import type { ProjectStatusSelectProps } from "../../interfaces/project.interfaces";
 
 export function ProjectStatusSelect({
   projectId,
   value,
   onUpdated,
-}: {
-  projectId: string;
-  value: Project["status"];
-  onUpdated: (p: Project) => void;
-}) {
+}: ProjectStatusSelectProps) {
   return (
     <select
       className="select"

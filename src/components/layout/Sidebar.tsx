@@ -1,14 +1,14 @@
 import { NavLink } from "react-router-dom";
-import type { UserRole } from "../../types/roles";
 import { AREA_LABEL, DASHBOARD_NAV } from "./dashboardNav";
 import { LogoMark } from "../LogoMark";
+import type { SidebarProps } from "../../interfaces/layout.interfaces";
 
 const activeClass =
   "bg-primary-container text-on-primary-container rounded-lg font-bold flex items-center gap-3 px-4 py-3 border-l-4 border-primary shadow-sm no-underline";
 const inactiveClass =
   "text-on-surface-variant flex items-center gap-3 px-4 py-3 hover:bg-surface-container-high transition-colors duration-200 rounded-lg no-underline";
 
-export function Sidebar({ role }: { role: UserRole }) {
+export function Sidebar({ role }: SidebarProps) {
   const items = DASHBOARD_NAV[role];
 
   return (

@@ -1,3 +1,5 @@
+import type { ApiErrorBody } from "../types/api";
+
 const BASE = "/api";
 
 export class ApiRequestError extends Error {
@@ -18,7 +20,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
     const message = body?.error?.message ?? res.statusText;
     throw new ApiRequestError(res.status, message);
   }

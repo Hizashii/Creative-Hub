@@ -33,13 +33,19 @@ export type Task = {
   createdAt?: string;
 };
 
+export type ProjectMemberUser = {
+  name: string;
+  email: string;
+  role: UserRole;
+};
+
 export type ProjectMember = {
   id: string;
   projectId: string;
   userId: string;
   memberRole: string;
   createdAt?: string;
-  user?: { name: string; email: string; role: UserRole };
+  user?: ProjectMemberUser;
 };
 
 export type Asset = {
@@ -80,6 +86,12 @@ export type Brief = {
   status: BriefStatus;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type AcceptBriefResponse = {
+  project: {
+    id: string;
+  };
 };
 
 export type AdminUser = {

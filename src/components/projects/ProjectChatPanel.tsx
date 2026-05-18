@@ -1,5 +1,5 @@
 import type { FeedbackMessage, ProjectMember } from "../../types/domain";
-import type { ChatMessageAuthor, ProjectChatPanelProps } from "../../interfaces/projectWorkspace.interfaces";
+import type { ChatMessageAuthor, ProjectChatPanelProps } from "../../interfaces/project.interfaces";
 import { formatDateTime, getInitials, titleize } from "../../utils/format";
 
 function getChatParticipants(members: ProjectMember[], feedback: FeedbackMessage[]) {

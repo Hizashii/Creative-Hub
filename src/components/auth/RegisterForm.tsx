@@ -1,13 +1,13 @@
-﻿import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { ApiRequestError } from "../../api/client";
 import { AuthMediaPanel } from "./AuthMediaPanel";
 import { LogoMark } from "../LogoMark";
+import type { RegistrationRoleOption } from "../../interfaces/auth.interfaces";
+import type { RegistrationRole } from "../../types/auth";
 
-type RegistrationRole = "client" | "designer";
-
-const ROLES: { value: RegistrationRole; label: string; icon: string; description: string }[] = [
+const ROLES: RegistrationRoleOption[] = [
   {
     value: "designer",
     label: "Creative Pro",
@@ -32,7 +32,7 @@ export function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setPending(true);

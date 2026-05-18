@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import type { RoleRouteProps } from "../interfaces/layout.interfaces";
 import type { UserRole } from "../types/roles";
 
 const homeForRole = (role: UserRole) => {
@@ -8,7 +9,7 @@ const homeForRole = (role: UserRole) => {
   return "/client/dashboard";
 };
 
-export function RoleRoute({ roles, children }: { roles: UserRole[]; children: React.ReactNode }) {
+export function RoleRoute({ roles, children }: RoleRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {

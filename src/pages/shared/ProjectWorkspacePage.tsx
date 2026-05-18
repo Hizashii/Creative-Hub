@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
 import type { Project, Column, Task, Asset, FeedbackMessage, ProjectMember } from "../../types/domain";
+import type { ProjectRouteParams } from "../../types/routes";
 import { ProjectStatusSelect } from "../../components/projects/ProjectStatusSelect";
 import { ProjectChatPanel } from "../../components/projects/ProjectChatPanel";
 import { useAuth } from "../../hooks/useAuth";
@@ -9,7 +10,7 @@ import { SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, getInitials } from "../../utils/format";
 
 export function ProjectWorkspacePage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId } = useParams<ProjectRouteParams>();
   const { pathname } = useLocation();
   const area = pathname.split("/")[1] || "client";
   const base = `/${area}`;
@@ -65,7 +66,7 @@ export function ProjectWorkspacePage() {
     return () => window.clearInterval(t);
   }, [projectId]);
 
-  async function sendMessage(e: React.FormEvent) {
+  async function sendMessage(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !message.trim()) return;
     setError(null);
@@ -78,7 +79,7 @@ export function ProjectWorkspacePage() {
     }
   }
 
-  async function addAsset(e: React.FormEvent) {
+  async function addAsset(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !assetUrl.trim() || !assetName.trim()) return;
     setError(null);
@@ -91,7 +92,7 @@ export function ProjectWorkspacePage() {
     }
   }
 
-  async function sendPreview(e: React.FormEvent) {
+  async function sendPreview(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !previewUrl.trim() || !previewName.trim()) return;
     setError(null);
@@ -141,7 +142,7 @@ export function ProjectWorkspacePage() {
     }
   }
 
-  async function addTask(e: React.FormEvent) {
+  async function addTask(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !newTaskTitle.trim() || !newTaskCol) return;
     setError(null);

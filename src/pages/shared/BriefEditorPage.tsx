@@ -2,9 +2,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams, Link, useLocation } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
 import type { Brief, DesignType } from "../../types/domain";
+import type { DesignTypeOption } from "../../interfaces/brief.interfaces";
+import type { BriefRouteParams } from "../../types/routes";
 import { EmptyState, PageHeader, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 
-const designTypes: { value: DesignType; label: string; icon: string }[] = [
+const designTypes: DesignTypeOption[] = [
   { value: "logo", label: "Logo", icon: "signature" },
   { value: "poster", label: "Poster", icon: "newspaper" },
   { value: "branding", label: "Branding", icon: "palette" },
@@ -21,7 +23,7 @@ function toDateInputValue(iso: string) {
 }
 
 export function BriefEditorPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams<BriefRouteParams>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const area = pathname.split("/")[1] || "client";

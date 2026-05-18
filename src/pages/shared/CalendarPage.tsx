@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import type { CalendarResponse } from "../../types/dashboard";
+import type { CalendarEvent } from "../../types/calendar";
 import { useDashboardNav } from "../../hooks/useDashboardNav";
 import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatDate } from "../../utils/format";
@@ -14,11 +15,7 @@ function dayKey(iso: string) {
   }
 }
 
-type CalEvent =
-  | { source: "task"; id: string; title: string; at: string; projectId: string; projectTitle: string }
-  | { source: "brief"; id: string; title: string; at: string; companyName: string; status: string };
-
-function eventTone(source: CalEvent["source"]) {
+function eventTone(source: CalendarEvent["source"]) {
   return source === "task" ? "primary" : "tertiary";
 }
 
@@ -46,7 +43,7 @@ export function CalendarPage() {
     };
   }, []);
 
-  const events = useMemo<CalEvent[]>(() => {
+  const events = useMemo<CalendarEvent[]>(() => {
     if (!data) return [];
     return [
       ...data.tasks.map((t) => ({
@@ -69,7 +66,7 @@ export function CalendarPage() {
   }, [data]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, CalEvent[]>();
+    const map = new Map<string, CalendarEvent[]>();
     for (const event of events) {
       const key = dayKey(event.at);
       if (!map.has(key)) map.set(key, []);

@@ -3,15 +3,16 @@ import { api, ApiRequestError } from "../../api/client";
 import type { InvoiceRow } from "../../types/dashboard";
 import type { Project } from "../../types/domain";
 import type { ClientDirectoryRow } from "../../types/dashboard";
+import type { ClientInvoiceDocumentsProps } from "../../interfaces/invoice.interfaces";
+import type { InvoiceFilter, InvoiceStatus } from "../../types/invoices";
+import type { Tone } from "../../types/ui";
 import { useAuth } from "../../hooks/useAuth";
 import { EmptyState, MetricCard, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, titleize } from "../../utils/format";
 
-const statuses = ["draft", "sent", "paid", "void"] as const;
-type InvoiceStatus = (typeof statuses)[number];
-type InvoiceFilter = "all" | InvoiceStatus;
+const statuses: InvoiceStatus[] = ["draft", "sent", "paid", "void"];
 
-const statusTone: Record<string, "primary" | "secondary" | "tertiary" | "error" | "neutral"> = {
+const statusTone: Record<string, Tone> = {
   draft: "neutral",
   sent: "tertiary",
   paid: "secondary",
@@ -23,12 +24,7 @@ function ClientInvoiceDocuments({
   loading,
   clientName,
   clientEmail,
-}: {
-  invoices: InvoiceRow[];
-  loading: boolean;
-  clientName?: string;
-  clientEmail?: string;
-}) {
+}: ClientInvoiceDocumentsProps) {
   const paidInvoices = invoices.filter((invoice) => invoice.status === "paid");
 
   return (

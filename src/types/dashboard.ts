@@ -27,9 +27,25 @@ export type DashboardTask = {
   updatedAt?: string;
 };
 
+export type CalendarTask = {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  title: string;
+  dueDate: string;
+};
+
+export type CalendarBrief = {
+  id: string;
+  title: string;
+  companyName: string;
+  deadline: string;
+  status: string;
+};
+
 export type CalendarResponse = {
-  tasks: { id: string; projectId: string; projectTitle: string; title: string; dueDate: string }[];
-  briefs: { id: string; title: string; companyName: string; deadline: string; status: string }[];
+  tasks: CalendarTask[];
+  briefs: CalendarBrief[];
 };
 
 export type DocumentRow = {
@@ -90,4 +106,11 @@ export type InvoiceRow = {
   dueDate?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type AdminDashboardCounts = {
+  projects: number;
+  briefs: number;
+  users: number;
+  inProgress: number;
 };

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import type { Project } from "../../types/domain";
+import type { ProjectCardProps, ProjectStatusDisplayConfig } from "../../interfaces/project.interfaces";
 
 const STATUS = {
   in_progress: { label: "In progress", cls: "bg-primary-container text-on-primary-container" },
@@ -7,7 +7,7 @@ const STATUS = {
   paused: { cls: "bg-tertiary-fixed text-on-tertiary-fixed", label: "Paused" },
   completed: { cls: "bg-secondary-container text-on-secondary-container", label: "Completed" },
   draft: { cls: "bg-surface-variant text-on-surface-variant", label: "Draft" },
-} as const;
+} satisfies Record<string, ProjectStatusDisplayConfig>;
 
 const PROGRESS: Record<string, number> = {
   completed: 100,
@@ -17,7 +17,7 @@ const PROGRESS: Record<string, number> = {
   draft: 20,
 };
 
-export function ProjectCard({ project, to }: { project: Project; to: string }) {
+export function ProjectCard({ project, to }: ProjectCardProps) {
   const s = STATUS[project.status] ?? STATUS.draft;
   const pct = PROGRESS[project.status] ?? 20;
 

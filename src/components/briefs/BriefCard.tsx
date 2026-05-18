@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import type { Brief } from "../../types/domain";
 import { BriefStatusBadge } from "./BriefStatusBadge";
 import { formatDate, titleize } from "../../utils/format";
+import type { BriefCardProps } from "../../interfaces/brief.interfaces";
 
-export function BriefCard({ brief, to }: { brief: Brief; to: string }) {
+export function BriefCard({ brief, to }: BriefCardProps) {
   return (
     <Link
       to={to}

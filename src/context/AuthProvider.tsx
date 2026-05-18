@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext, type AuthUser } from "./auth-context";
+import { AuthContext } from "./auth-context";
 import { api } from "../api/client";
+import type { AuthProviderProps } from "../interfaces/auth.interfaces";
+import type { AuthResponse, AuthUser, RegisterInput } from "../types/auth";
 
-type MeResponse = AuthUser;
-
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("creativehub_token"));
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const me = await api<MeResponse>("/auth/me");
+        const me = await api<AuthUser>("/auth/me");
         if (!cancelled) setUser(me);
       } catch {
         if (!cancelled) {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api<{ token: string; user: AuthUser }>("/auth/login", {
+    const res = await api<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return res.user;
   }, []);
 
-  const register = useCallback(async (input: { email: string; password: string; name: string; role: "client" | "designer" }) => {
-    const res = await api<{ token: string; user: AuthUser }>("/auth/register", {
+  const register = useCallback(async (input: RegisterInput) => {
+    const res = await api<AuthResponse>("/auth/register", {
       method: "POST",
       body: JSON.stringify(input),
     });
