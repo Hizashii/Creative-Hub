@@ -5,9 +5,41 @@ import type { Project, Column, Task, Asset, FeedbackMessage, ProjectMember } fro
 import type { ProjectRouteParams } from "../../types/routes";
 import { ProjectStatusSelect } from "../../components/projects/ProjectStatusSelect";
 import { ProjectChatPanel } from "../../components/projects/ProjectChatPanel";
+import { ClientProjectWorkspaceView } from "../../components/projects/ClientProjectWorkspaceView";
+import { DesignerProjectWorkspaceView } from "../../components/projects/DesignerProjectWorkspaceView";
 import { useAuth } from "../../hooks/useAuth";
 import { SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, getInitials } from "../../utils/format";
+
+function assetTime(asset: Asset) {
+  return asset.createdAt ? new Date(asset.createdAt).getTime() : 0;
+}
+
+function messageTime(message: FeedbackMessage) {
+  return message.createdAt ? new Date(message.createdAt).getTime() : 0;
+}
+
+function hasDesignerVisibleAsset(asset: Asset, members: ProjectMember[]) {
+  const uploader = members.find((member) => member.userId === asset.uploaderId);
+  return asset.tags.includes("preview") || uploader?.user?.role === "designer" || uploader?.user?.role === "admin";
+}
+
+function hasOpenChangeRequest(project: Project, assets: Asset[], members: ProjectMember[], feedback: FeedbackMessage[]) {
+  if (project.status !== "in_progress") return false;
+
+  const latestDesignerAssetTime = Math.max(
+    0,
+    ...assets.filter((asset) => hasDesignerVisibleAsset(asset, members)).map(assetTime),
+  );
+  const latestChangeRequestTime = Math.max(
+    0,
+    ...feedback
+      .filter((item) => item.authorId === project.ownerId && item.message.trim().toLowerCase() === "requested changes.")
+      .map(messageTime),
+  );
+
+  return latestChangeRequestTime > latestDesignerAssetTime;
+}
 
 export function ProjectWorkspacePage() {
   const { projectId } = useParams<ProjectRouteParams>();
@@ -34,6 +66,8 @@ export function ProjectWorkspacePage() {
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [completionPending, setCompletionPending] = useState(false);
   const [approvalPending, setApprovalPending] = useState(false);
+  const [pickUpPending, setPickUpPending] = useState(false);
+  const [changesRequested, setChangesRequested] = useState(false);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -47,6 +81,7 @@ export function ProjectWorkspacePage() {
         api<FeedbackMessage[]>(`/projects/${projectId}/feedback`),
       ]);
       setProject(p); setColumns(c); setTasks(t); setAssets(a); setMembers(m); setFeedback(f);
+      setChangesRequested(hasOpenChangeRequest(p, a, m, f));
       setNewTaskCol((prev) => prev || c[0]?.id || "");
     } catch {
       setProject(null);
@@ -97,7 +132,7 @@ export function ProjectWorkspacePage() {
     if (!projectId || !previewUrl.trim() || !previewName.trim()) return;
     setError(null);
     try {
-      await api(`/projects/${projectId}/assets`, {
+      await api<Asset>(`/projects/${projectId}/assets`, {
         method: "POST",
         body: JSON.stringify({
           url: previewUrl.trim(),
@@ -108,6 +143,7 @@ export function ProjectWorkspacePage() {
       setPreviewUrl("");
       setPreviewName("");
       setAssets(await api<Asset[]>(`/projects/${projectId}/assets`));
+      setChangesRequested(false);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Could not send preview");
     }
@@ -120,8 +156,9 @@ export function ProjectWorkspacePage() {
     try {
       const updated = await api<Project>(`/projects/${projectId}/submit-completion`, { method: "POST" });
       setProject(updated);
+      setChangesRequested(false);
     } catch (err) {
-      setError(err instanceof ApiRequestError ? err.message : "Could not mark this project as done");
+      setError(err instanceof ApiRequestError ? err.message : "Could not request review");
     } finally {
       setCompletionPending(false);
     }
@@ -132,13 +169,57 @@ export function ProjectWorkspacePage() {
     setError(null);
     setApprovalPending(true);
     try {
+      if (project?.status !== "pending") {
+        await api<Project>(`/projects/${projectId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "pending" }),
+        });
+      }
       const updated = await api<Project>(`/projects/${projectId}/approve-completion`, { method: "POST" });
       setProject(updated);
+      setChangesRequested(false);
+      setFeedback(await api<FeedbackMessage[]>(`/projects/${projectId}/feedback`));
       setPaymentComplete(true);
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : "Could not approve this project");
+      throw err;
     } finally {
       setApprovalPending(false);
+    }
+  }
+
+  async function requestChanges() {
+    if (!projectId) return;
+    setError(null);
+    try {
+      const updated = await api<Project>(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "in_progress" }),
+      });
+      await api(`/projects/${projectId}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({ message: "Requested changes." }),
+      });
+      setProject(updated);
+      setChangesRequested(true);
+      setFeedback(await api<FeedbackMessage[]>(`/projects/${projectId}/feedback`));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not request changes");
+      throw err;
+    }
+  }
+
+  async function pickUp() {
+    if (!project?.briefId) return;
+    setError(null);
+    setPickUpPending(true);
+    try {
+      await api(`/briefs/${project.briefId}/accept`, { method: "POST", body: JSON.stringify({}) });
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not pick up this project");
+    } finally {
+      setPickUpPending(false);
     }
   }
 
@@ -174,7 +255,11 @@ export function ProjectWorkspacePage() {
   const isPendingApproval = project.status === "pending";
   const isCompleted = project.status === "completed";
   const canSubmitCompletion = canSendPreview && !isPendingApproval && !isCompleted;
-  const canApprovePreview = user?.role === "client" && user.id === project.ownerId && isPendingApproval;
+  const hasReviewableAssets = assets.some((asset) => hasDesignerVisibleAsset(asset, members));
+  const canReviewPreview =
+    user?.role === "client" && user.id === project.ownerId && !isCompleted && hasReviewableAssets && !changesRequested;
+  const canApprovePreview = canReviewPreview;
+  const canRequestChanges = canReviewPreview;
   const previewAssets = assets
     .filter((asset) => asset.tags.includes("preview"))
     .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
@@ -186,6 +271,62 @@ export function ProjectWorkspacePage() {
     paused: "Paused",
     completed: "Completed",
   };
+
+  if (user?.role === "client") {
+    return (
+      <ClientProjectWorkspaceView
+        project={project}
+        base={base}
+        assets={assets}
+        members={members}
+        feedback={feedback}
+        currentUser={user}
+        message={message}
+        error={error}
+        canApprovePreview={canApprovePreview}
+        canRequestChanges={canRequestChanges}
+        approvalPending={approvalPending}
+        changesRequested={changesRequested}
+        onMessageChange={setMessage}
+        onSendMessage={sendMessage}
+        onApprovePreview={approveCompletion}
+        onRequestChanges={requestChanges}
+      />
+    );
+  }
+
+  if (user?.role === "designer") {
+    return (
+      <DesignerProjectWorkspaceView
+        project={project}
+        base={base}
+        columns={columns}
+        tasks={tasks}
+        assets={assets}
+        members={members}
+        feedback={feedback}
+        currentUser={user}
+        message={message}
+        error={error}
+        fileUrl={previewUrl}
+        fileName={previewName}
+        newTaskTitle={newTaskTitle}
+        newTaskCol={newTaskCol}
+        requestPending={completionPending}
+        pickUpPending={pickUpPending}
+        onFileUrlChange={setPreviewUrl}
+        onFileNameChange={setPreviewName}
+        onUploadFile={sendPreview}
+        onTaskTitleChange={setNewTaskTitle}
+        onTaskColChange={setNewTaskCol}
+        onAddTask={addTask}
+        onMessageChange={setMessage}
+        onSendMessage={sendMessage}
+        onRequestReview={() => void submitCompletion()}
+        onPickUp={() => void pickUp()}
+      />
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -398,11 +539,6 @@ export function ProjectWorkspacePage() {
                         <span className="material-symbols-outlined text-[18px]">favorite</span>
                         Yes, I love it!
                       </button>
-                    )}
-                    {user?.role === "client" && previewAssets.length > 0 && !isPendingApproval && !isCompleted && (
-                      <p className="rounded-lg bg-surface-container-low p-3 text-body-sm text-on-surface-variant">
-                        Waiting for the professional to mark this project all done before approval.
-                      </p>
                     )}
                   </div>
                 </div>

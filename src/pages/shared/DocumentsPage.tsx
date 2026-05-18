@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
 import type { DocumentRow } from "../../types/dashboard";
 import type { Asset, Project } from "../../types/domain";
+import { useAuth } from "../../hooks/useAuth";
 import { useDashboardNav } from "../../hooks/useDashboardNav";
 import { EmptyState, MetricCard, PageHeader, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatDate } from "../../utils/format";
@@ -23,6 +24,7 @@ function fileToDataUrl(file: File) {
 
 export function DocumentsPage() {
   const { base } = useDashboardNav();
+  const { user } = useAuth();
   const [rows, setRows] = useState<DocumentRow[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ export function DocumentsPage() {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isClient = user?.role === "client";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,8 +67,8 @@ export function DocumentsPage() {
       setError("Select the project this file belongs to.");
       return;
     }
-    if (!selectedFile && !fileLink.trim()) {
-      setError("Attach a file or paste a file link.");
+    if (!selectedFile && (!fileLink.trim() || isClient)) {
+      setError("Attach a file for this project.");
       return;
     }
 
@@ -127,7 +130,11 @@ export function DocumentsPage() {
       <PageHeader
         eyebrow="Library"
         title="Documents"
-        description="Attach images, videos, and reference files to the project that needs them."
+        description={
+          isClient
+            ? "Send your own reference files to the specific project that needs them."
+            : "Attach images, videos, and reference files to the project that needs them."
+        }
         actions={
           <label className="relative block min-w-[240px]">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">
@@ -153,7 +160,9 @@ export function DocumentsPage() {
         <div className="border-b border-outline-variant px-6 py-5">
           <h2 className="text-headline-md font-semibold text-on-surface">Attach a file to a project</h2>
           <p className="mt-1 text-body-sm text-on-surface-variant">
-            Select the project, upload the file or paste a hosted file link, then save it to the project documents.
+            {isClient
+              ? "Select the project and upload the file you want to send."
+              : "Select the project, upload the file or paste a hosted file link, then save it to the project documents."}
           </p>
         </div>
         <form onSubmit={(event) => void saveDocument(event)} className="grid gap-5 p-6 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(180px,0.8fr)_auto] lg:items-end">
@@ -214,17 +223,19 @@ export function DocumentsPage() {
             {saving ? "Saving..." : "Save"}
           </button>
 
-          <label className="block lg:col-span-3">
-            <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
-              Or paste a hosted file link
-            </span>
-            <input
-              value={fileLink}
-              onChange={(event) => setFileLink(event.target.value)}
-              className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              placeholder="https://example.com/reference.png"
-            />
-          </label>
+          {!isClient && (
+            <label className="block lg:col-span-3">
+              <span className="mb-1 block text-label-md font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                Or paste a hosted file link
+              </span>
+              <input
+                value={fileLink}
+                onChange={(event) => setFileLink(event.target.value)}
+                className="h-10 w-full rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-body-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                placeholder="https://example.com/reference.png"
+              />
+            </label>
+          )}
 
           {error && (
             <div className="rounded-lg bg-error-container p-3 text-body-sm text-on-error-container lg:col-span-4">
@@ -258,7 +269,11 @@ export function DocumentsPage() {
         <EmptyState
           icon="draft"
           title="No documents found"
-          description="Files uploaded inside project workspaces will appear here with project links and tags."
+          description={
+            isClient
+              ? "Your project reference uploads will appear here. Designer review files stay in the project workspace."
+              : "Files uploaded inside project workspaces will appear here with project links and tags."
+          }
         />
       )}
 

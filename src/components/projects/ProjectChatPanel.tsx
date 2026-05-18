@@ -30,10 +30,10 @@ function getMessageAuthor(
 }
 
 function roleBadgeClass(role?: string) {
-  if (role === "client") return "bg-secondary-container text-secondary";
-  if (role === "designer") return "bg-primary-container text-primary";
-  if (role === "admin") return "bg-tertiary-fixed text-tertiary";
-  return "bg-surface-container-high text-on-surface-variant";
+  if (role === "client") return "bg-secondary-container text-black";
+  if (role === "designer") return "bg-primary-container text-black";
+  if (role === "admin") return "bg-tertiary-fixed text-black";
+  return "bg-surface-container-high text-black";
 }
 
 export function ProjectChatPanel({
@@ -92,7 +92,7 @@ export function ProjectChatPanel({
                 )}
                 <div className={`flex max-w-[84%] flex-col ${author.isMine ? "items-end" : "items-start"}`}>
                   <div className={`mb-1 flex flex-wrap items-center gap-2 ${author.isMine ? "justify-end" : "justify-start"}`}>
-                    <span className="text-[11px] font-bold text-on-surface-variant">{author.name}</span>
+                    <span className="text-[11px] font-bold text-black">{author.name}</span>
                     {author.role && (
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${roleBadgeClass(author.role)}`}>
                         {titleize(author.role)}
@@ -103,7 +103,7 @@ export function ProjectChatPanel({
                   <div
                     className={`rounded-2xl px-4 py-3 shadow-sm ${
                       author.isMine
-                        ? "rounded-br-md bg-primary text-on-primary"
+                        ? "rounded-br-md bg-primary-container text-black"
                         : "rounded-bl-md border border-outline-variant bg-surface-container-lowest text-on-surface"
                     }`}
                   >

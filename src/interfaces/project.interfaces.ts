@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 import type { AuthUser } from "../types/auth";
 import type { UserRole } from "../types/roles";
-import type { FeedbackMessage, Project, ProjectMember } from "../types/domain";
+import type { Asset, Column, FeedbackMessage, Project, ProjectMember, Task } from "../types/domain";
 
 export interface ProjectCardProps {
   project: Project;
@@ -33,4 +33,33 @@ export interface ChatMessageAuthor {
   name: string;
   initials: string;
   role?: UserRole;
+}
+
+export interface DesignerProjectWorkspaceViewProps {
+  project: Project;
+  base: string;
+  columns: Column[];
+  tasks: Task[];
+  assets: Asset[];
+  members: ProjectMember[];
+  feedback: FeedbackMessage[];
+  currentUser: AuthUser | null;
+  message: string;
+  error: string | null;
+  fileUrl: string;
+  fileName: string;
+  newTaskTitle: string;
+  newTaskCol: string;
+  requestPending: boolean;
+  pickUpPending: boolean;
+  onFileUrlChange: (value: string) => void;
+  onFileNameChange: (value: string) => void;
+  onUploadFile: (event: FormEvent<HTMLFormElement>) => void;
+  onTaskTitleChange: (value: string) => void;
+  onTaskColChange: (value: string) => void;
+  onAddTask: (event: FormEvent<HTMLFormElement>) => void;
+  onMessageChange: (value: string) => void;
+  onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
+  onRequestReview: () => void;
+  onPickUp: () => void;
 }

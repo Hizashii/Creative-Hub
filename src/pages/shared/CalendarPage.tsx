@@ -4,7 +4,7 @@ import { api } from "../../api/client";
 import type { CalendarResponse } from "../../types/dashboard";
 import type { CalendarEvent } from "../../types/calendar";
 import { useDashboardNav } from "../../hooks/useDashboardNav";
-import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
+import { EmptyState, PageHeader, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatDate } from "../../utils/format";
 
 function dayKey(iso: string) {
@@ -15,8 +15,10 @@ function dayKey(iso: string) {
   }
 }
 
-function eventTone(source: CalendarEvent["source"]) {
-  return source === "task" ? "primary" : "tertiary";
+function deadlineRows(data: CalendarResponse | null) {
+  if (!data) return [];
+  const rows = data.deadlines ?? data.briefs ?? [];
+  return Array.isArray(rows) ? rows : [];
 }
 
 export function CalendarPage() {
@@ -44,25 +46,17 @@ export function CalendarPage() {
   }, []);
 
   const events = useMemo<CalendarEvent[]>(() => {
-    if (!data) return [];
-    return [
-      ...data.tasks.map((t) => ({
-        source: "task" as const,
-        id: t.id,
-        title: t.title,
-        at: t.dueDate,
-        projectId: t.projectId,
-        projectTitle: t.projectTitle,
-      })),
-      ...data.briefs.map((b) => ({
-        source: "brief" as const,
-        id: b.id,
-        title: b.title,
-        at: b.deadline,
-        companyName: b.companyName,
-        status: b.status,
-      })),
-    ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    return deadlineRows(data)
+      .map((deadline) => ({
+        id: deadline.id,
+        title: deadline.projectTitle ?? deadline.title,
+        at: deadline.deadline,
+        companyName: deadline.companyName,
+        status: deadline.status,
+        projectId: deadline.projectId,
+        projectTitle: deadline.projectTitle,
+      }))
+      .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   }, [data]);
 
   const grouped = useMemo(() => {
@@ -103,33 +97,7 @@ export function CalendarPage() {
       <PageHeader
         eyebrow="Schedule"
         title={monthLabel}
-        description={`You have ${events.length} dated tasks and brief deadlines in this workspace.`}
-        actions={
-          <>
-            <div className="inline-flex rounded-lg bg-surface-container-low p-1">
-              {["Month", "Week", "Day"].map((view, index) => (
-                <button
-                  key={view}
-                  type="button"
-                  className={`rounded-md px-4 py-2 text-label-md font-bold transition-colors ${
-                    index === 0
-                      ? "bg-surface-container-lowest text-primary shadow-sm"
-                      : "text-on-surface-variant hover:bg-surface-container-high"
-                  }`}
-                >
-                  {view}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
-            >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              Add event
-            </button>
-          </>
-        }
+        description={`You have ${events.length} project deadline${events.length === 1 ? "" : "s"} in this workspace.`}
       />
 
       {loading && <p className="text-body-sm text-on-surface-variant">Loading...</p>}
@@ -137,8 +105,8 @@ export function CalendarPage() {
       {!loading && events.length === 0 && (
         <EmptyState
           icon="event_busy"
-          title="No dated items yet"
-          description="Add due dates to project tasks or submit briefs with deadlines to populate this schedule."
+          title="No project deadlines yet"
+          description="Deadlines from submitted client requirements and their project workspaces will appear here."
         />
       )}
 
@@ -163,15 +131,15 @@ export function CalendarPage() {
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-label-md font-bold">{cell.date.getDate()}</span>
                     {cell.items.length > 0 && (
-                      <span className="h-2 w-2 rounded-full bg-primary" aria-label={`${cell.items.length} events`} />
+                      <span className="h-2.5 w-2.5 rounded-full bg-error" aria-label={`${cell.items.length} deadlines`} />
                     )}
                   </div>
                   <div className="space-y-1">
                     {cell.items.slice(0, 2).map((event) => (
                       <Link
-                        key={`${event.source}-${event.id}`}
-                        to={event.source === "task" ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
-                        className="block truncate rounded bg-surface-container px-2 py-1 text-[11px] font-semibold text-on-surface no-underline hover:bg-primary-container hover:text-on-primary-container"
+                        key={event.id}
+                        to={event.projectId ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
+                        className="block truncate rounded border border-error/30 bg-error-container px-2 py-1 text-[11px] font-semibold text-on-error-container no-underline hover:bg-error hover:text-on-error"
                       >
                         {event.title}
                       </Link>
@@ -187,22 +155,24 @@ export function CalendarPage() {
 
           <aside className="space-y-6">
             <SurfaceCard className="p-5">
-              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Upcoming events</h2>
+              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Upcoming deadlines</h2>
               <ul className="space-y-4">
                 {upcoming.map((event) => (
-                  <li key={`${event.source}-${event.id}`} className="border-b border-outline-variant pb-4 last:border-b-0 last:pb-0">
+                  <li key={event.id} className="border-b border-outline-variant pb-4 last:border-b-0 last:pb-0">
                     <div className="mb-2 flex items-center justify-between gap-3">
-                      <StatusPill tone={eventTone(event.source)}>{event.source === "task" ? "Task" : "Brief"}</StatusPill>
-                      <span className="text-label-sm text-outline">{formatDate(event.at)}</span>
+                      <span className="rounded-full bg-error-container px-2.5 py-1 text-label-sm font-bold text-on-error-container">
+                        Deadline
+                      </span>
+                      <span className="text-label-sm font-bold text-error">{formatDate(event.at)}</span>
                     </div>
                     <Link
-                      to={event.source === "task" ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
-                      className="font-semibold text-on-surface no-underline hover:text-primary"
+                      to={event.projectId ? `${base}/projects/${event.projectId}` : `${base}/briefs/${event.id}`}
+                      className="font-semibold text-on-surface no-underline hover:text-error"
                     >
                       {event.title}
                     </Link>
                     <p className="mt-1 text-body-sm text-on-surface-variant">
-                      {event.source === "task" ? event.projectTitle : `${event.companyName} / ${event.status}`}
+                      {event.companyName} / {event.status}
                     </p>
                   </li>
                 ))}
@@ -210,20 +180,15 @@ export function CalendarPage() {
             </SurfaceCard>
 
             <SurfaceCard className="p-5">
-              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Filters</h2>
+              <h2 className="mb-4 text-headline-md font-semibold text-on-surface">Calendar key</h2>
               <div className="space-y-3">
-                {[
-                  { label: "Tasks", count: data?.tasks.length ?? 0, color: "bg-primary" },
-                  { label: "Briefs", count: data?.briefs.length ?? 0, color: "bg-tertiary-fixed-dim" },
-                ].map((filter) => (
-                  <div key={filter.label} className="flex items-center justify-between rounded-lg border border-outline-variant p-3">
-                    <span className="flex items-center gap-3 text-body-sm font-semibold text-on-surface">
-                      <span className={`h-3 w-3 rounded-full ${filter.color}`} />
-                      {filter.label}
-                    </span>
-                    <span className="text-label-md text-on-surface-variant">{filter.count}</span>
-                  </div>
-                ))}
+                <div className="flex items-center justify-between rounded-lg border border-error/30 bg-error-container/40 p-3">
+                  <span className="flex items-center gap-3 text-body-sm font-semibold text-on-surface">
+                    <span className="h-3 w-3 rounded-full bg-error" />
+                    Project deadlines
+                  </span>
+                  <span className="text-label-md font-bold text-error">{deadlineRows(data).length}</span>
+                </div>
               </div>
             </SurfaceCard>
           </aside>

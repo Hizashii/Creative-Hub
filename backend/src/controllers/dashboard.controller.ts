@@ -35,7 +35,7 @@ async function getVisibleBriefQuery(userId: Types.ObjectId, role: string): Promi
   if (role !== "designer") return { _id: { $in: [] } };
 
   const projectIds = await getAccessibleProjectIds(userId, role);
-  if (projectIds.length === 0) return { _id: { $in: [] } };
+  if (projectIds.length === 0) return { status: "submitted" };
 
   const projects = await ProjectModel.find({
     _id: { $in: projectIds },
@@ -48,7 +48,7 @@ async function getVisibleBriefQuery(userId: Types.ObjectId, role: string): Promi
     .map((project) => project.briefId)
     .filter((briefId): briefId is Types.ObjectId => briefId instanceof Types.ObjectId);
 
-  return { _id: { $in: briefIds } };
+  return { $or: [{ status: "submitted" }, { _id: { $in: briefIds } }] };
 }
 
 export const activityFeed = asyncHandler(async (req: Request, res: Response) => {
@@ -183,39 +183,26 @@ export const listMyTasks = asyncHandler(async (req: Request, res: Response) => {
 export const calendar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
-  const ids = await getAccessibleProjectIds(userId, req.user.role);
-
   const briefQuery = await getVisibleBriefQuery(userId, req.user.role);
   const briefs = await BriefModel.find(briefQuery).select("title companyName deadline status").sort({ deadline: 1 }).lean();
-
-  let tasks: unknown[] = [];
-  if (ids.length > 0) {
-    const taskRows = await TaskModel.find({
-      projectId: { $in: ids },
-      dueDate: { $exists: true, $ne: null },
-    })
-      .sort({ dueDate: 1 })
-      .limit(150)
-      .lean();
-    const projects = await ProjectModel.find({ _id: { $in: ids } }).select("title").lean();
-    const projectTitle = new Map(projects.map((p) => [String((p as { _id: Types.ObjectId })._id), (p as { title: string }).title]));
-    tasks = taskRows.map((t) => ({
-      id: String(t._id),
-      projectId: String(t.projectId),
-      projectTitle: projectTitle.get(String(t.projectId)) ?? "Project",
-      title: t.title,
-      dueDate: t.dueDate!.toISOString(),
-    }));
-  }
+  const briefIds = briefs.map((brief) => brief._id);
+  const projects = await ProjectModel.find({ briefId: { $in: briefIds } }).select("title briefId").lean();
+  const projectByBrief = new Map(
+    projects.map((project) => [
+      String(project.briefId),
+      { id: String(project._id), title: (project as { title: string }).title },
+    ]),
+  );
 
   res.json({
-    tasks,
-    briefs: briefs.map((b) => ({
+    deadlines: briefs.map((b) => ({
       id: String(b._id),
       title: b.title,
       companyName: b.companyName,
       deadline: b.deadline.toISOString(),
       status: b.status,
+      projectId: projectByBrief.get(String(b._id))?.id,
+      projectTitle: projectByBrief.get(String(b._id))?.title,
     })),
   });
 });
@@ -228,7 +215,12 @@ export const listDocuments = asyncHandler(async (req: Request, res: Response) =>
     res.json([]);
     return;
   }
-  const assets = await AssetModel.find({ projectId: { $in: ids } }).sort({ createdAt: -1 }).limit(300).lean();
+  const assetFilter: Record<string, unknown> = { projectId: { $in: ids } };
+  if (req.user.role === "client") {
+    assetFilter.uploaderId = userId;
+    assetFilter.tags = "client-upload";
+  }
+  const assets = await AssetModel.find(assetFilter).sort({ createdAt: -1 }).limit(300).lean();
   const projects = await ProjectModel.find({ _id: { $in: ids } }).select("title").lean();
   const projectTitle = new Map(projects.map((p) => [String((p as { _id: Types.ObjectId })._id), (p as { title: string }).title]));
 
@@ -247,26 +239,36 @@ export const listDocuments = asyncHandler(async (req: Request, res: Response) =>
 
 export const listLeads = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
-  if (req.user.role !== "admin") {
+  console.log(`[listLeads] role=${req.user.role} id=${req.user.id}`);
+  if (req.user.role !== "admin" && req.user.role !== "designer") {
     res.json([]);
     return;
   }
-  const items = await BriefModel.find({ status: "submitted" }).sort({ createdAt: -1 }).lean();
-  const clientIds = [...new Set(items.map((b) => String(b.clientId)))];
-  const clients = await UserModel.find({ _id: { $in: clientIds.map((id) => new Types.ObjectId(id)) } })
-    .select("name email")
-    .lean();
+  const rawItems = await BriefModel.find({ status: "submitted" }).sort({ createdAt: -1 }).lean();
+  console.log(`[listLeads] found ${rawItems.length} submitted brief(s):`, rawItems.map(b => ({ id: String(b._id), status: b.status, clientId: String(b.clientId), hasDeadline: !!b.deadline })));
+
+  const isValidObjectIdStr = (s: string) => /^[0-9a-f]{24}$/i.test(s);
+  const items = rawItems.filter((b) => b.clientId && isValidObjectIdStr(String(b.clientId)));
+
+  const clientIdStrs = [...new Set(items.map((b) => String(b.clientId)))];
+  const clients =
+    clientIdStrs.length > 0
+      ? await UserModel.find({ _id: { $in: clientIdStrs.map((id) => new Types.ObjectId(id)) } })
+          .select("name email")
+          .lean()
+      : [];
   const clientById = new Map(clients.map((c) => [String((c as { _id: Types.ObjectId })._id), c as { name: string; email: string }]));
 
   res.json(
     items.map((b) => {
       const c = clientById.get(String(b.clientId));
+      const deadline = b.deadline instanceof Date ? b.deadline : (b.deadline ? new Date(b.deadline as unknown as string) : null);
       return {
         id: String(b._id),
         title: b.title,
         companyName: b.companyName,
         designType: b.designType,
-        deadline: b.deadline.toISOString(),
+        deadline: deadline?.toISOString() ?? new Date().toISOString(),
         status: b.status,
         createdAt: (b as { createdAt?: Date }).createdAt?.toISOString(),
         clientId: String(b.clientId),
@@ -285,12 +287,23 @@ export const listClientDirectory = asyncHandler(async (req: Request, res: Respon
       { $group: { _id: "$ownerId", count: { $sum: 1 } } },
     ]);
     const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
+    const pendingBriefs = await BriefModel.find({ status: "submitted" }).sort({ createdAt: -1 }).select("clientId title").lean();
+    const pendingCount = new Map<string, number>();
+    const latestSubmission = new Map<string, { id: string; title: string }>();
+    for (const brief of pendingBriefs) {
+      const clientId = String(brief.clientId);
+      pendingCount.set(clientId, (pendingCount.get(clientId) ?? 0) + 1);
+      if (!latestSubmission.has(clientId)) latestSubmission.set(clientId, { id: String(brief._id), title: brief.title });
+    }
     res.json(
       clients.map((c) => ({
         id: String((c as { _id: Types.ObjectId })._id),
         name: (c as { name: string }).name,
         email: (c as { email: string }).email,
         projectCount: countMap.get(String((c as { _id: Types.ObjectId })._id)) ?? 0,
+        pendingSubmissionCount: pendingCount.get(String((c as { _id: Types.ObjectId })._id)) ?? 0,
+        latestSubmissionId: latestSubmission.get(String((c as { _id: Types.ObjectId })._id))?.id,
+        latestSubmissionTitle: latestSubmission.get(String((c as { _id: Types.ObjectId })._id))?.title,
       }))
     );
     return;
@@ -300,18 +313,31 @@ export const listClientDirectory = asyncHandler(async (req: Request, res: Respon
     const designerId = parseObjectId(req.user.id, "user id");
     const projectIds = await MemberModel.find({ userId: designerId }).distinct("projectId");
     const owners = await ProjectModel.find({ _id: { $in: projectIds } }).distinct("ownerId");
-    const clients = await UserModel.find({ _id: { $in: owners }, role: "client" }).sort({ name: 1 }).lean();
+    const pendingBriefs = await BriefModel.find({ status: "submitted" }).sort({ createdAt: -1 }).select("clientId title").lean();
+    const pendingClientIds = pendingBriefs.map((brief) => brief.clientId);
+    const clientIds = [...new Set([...owners, ...pendingClientIds].map((id) => String(id)))].map((id) => new Types.ObjectId(id));
+    const clients = await UserModel.find({ _id: { $in: clientIds }, role: "client" }).sort({ name: 1 }).lean();
     const counts = await ProjectModel.aggregate<{ _id: Types.ObjectId; count: number }>([
       { $match: { ownerId: { $in: clients.map((c) => (c as { _id: Types.ObjectId })._id) } } },
       { $group: { _id: "$ownerId", count: { $sum: 1 } } },
     ]);
     const countMap = new Map(counts.map((c) => [String(c._id), c.count]));
+    const pendingCount = new Map<string, number>();
+    const latestSubmission = new Map<string, { id: string; title: string }>();
+    for (const brief of pendingBriefs) {
+      const clientId = String(brief.clientId);
+      pendingCount.set(clientId, (pendingCount.get(clientId) ?? 0) + 1);
+      if (!latestSubmission.has(clientId)) latestSubmission.set(clientId, { id: String(brief._id), title: brief.title });
+    }
     res.json(
       clients.map((c) => ({
         id: String((c as { _id: Types.ObjectId })._id),
         name: (c as { name: string }).name,
         email: (c as { email: string }).email,
         projectCount: countMap.get(String((c as { _id: Types.ObjectId })._id)) ?? 0,
+        pendingSubmissionCount: pendingCount.get(String((c as { _id: Types.ObjectId })._id)) ?? 0,
+        latestSubmissionId: latestSubmission.get(String((c as { _id: Types.ObjectId })._id))?.id,
+        latestSubmissionTitle: latestSubmission.get(String((c as { _id: Types.ObjectId })._id))?.title,
       }))
     );
     return;

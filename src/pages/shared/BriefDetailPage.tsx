@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import { api, ApiRequestError } from "../../api/client";
-import type { AcceptBriefResponse, AdminUser, Brief } from "../../types/domain";
+import type { AcceptBriefResponse, AdminUser, Brief, Project } from "../../types/domain";
 import type { ProjectLinkCopy } from "../../interfaces/brief.interfaces";
 import type { BriefRouteParams } from "../../types/routes";
 import { BriefStatusBadge } from "../../components/briefs/BriefStatusBadge";
+import { ClientBriefProgressView } from "../../components/briefs/ClientBriefProgressView";
 import { useAuth } from "../../hooks/useAuth";
 import { EmptyState, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { formatCurrency, formatDate, titleize } from "../../utils/format";
@@ -58,6 +59,29 @@ export function BriefDetailPage() {
     };
   }, [user?.role]);
 
+  useEffect(() => {
+    if (user?.role !== "client" || !brief || brief.status === "submitted") return;
+    let cancelled = false;
+    const briefId = brief.id;
+
+    async function openLinkedProject() {
+      try {
+        const projects = await api<Project[]>("/projects");
+        const linkedProject = projects.find((project) => project.briefId === briefId);
+        if (!cancelled && linkedProject) {
+          navigate(`${base}/projects/${linkedProject.id}`, { replace: true });
+        }
+      } catch {
+        // Keep the client on the progress-only brief view if the workspace cannot be resolved.
+      }
+    }
+
+    void openLinkedProject();
+    return () => {
+      cancelled = true;
+    };
+  }, [base, brief, navigate, user?.role]);
+
   async function accept() {
     if (!id) return;
     setError(null);
@@ -107,7 +131,7 @@ export function BriefDetailPage() {
   }
 
   const canEditClient = user?.role === "client" && brief.clientId === user.id && brief.status === "submitted";
-  const canPickUp = user?.role === "admin" && brief.status === "submitted";
+  const canPickUp = (user?.role === "admin" || user?.role === "designer") && brief.status === "submitted";
   const showClientProjectLink =
     user?.role === "client" && ["in-progress", "pending", "completed"].includes(brief.status);
   const projectLinkCopy: Record<string, ProjectLinkCopy> = {
@@ -124,6 +148,10 @@ export function BriefDetailPage() {
       body: "This requirement has been approved and the project is closed.",
     },
   };
+
+  if (user?.role === "client") {
+    return <ClientBriefProgressView brief={brief} base={base} created={created} />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -273,10 +301,12 @@ export function BriefDetailPage() {
           {canPickUp && (
             <SurfaceCard className="p-5">
               <h2 className="mb-2 text-headline-md font-semibold text-on-surface">
-                Assign professional
+                {user?.role === "admin" ? "Assign professional" : "Pick up submission"}
               </h2>
               <p className="mb-4 text-body-sm text-on-surface-variant">
-                This creates a project workspace and assigns the selected professional.
+                {user?.role === "admin"
+                  ? "This creates a project workspace and assigns the selected professional."
+                  : "This creates a project workspace and assigns it to you."}
               </p>
               {error && (
                 <div className="mb-4 rounded-lg bg-error-container p-3 text-body-sm text-on-error-container">{error}</div>

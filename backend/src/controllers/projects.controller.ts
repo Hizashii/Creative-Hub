@@ -11,6 +11,7 @@ import { FeedbackModel } from "../models/feedback.models";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { parseObjectId } from "../utils/mongoose";
 import { getAccessibleProjectIds } from "../services/accessibleProjects";
+import { recordProjectPayment } from "../services/projectPayment";
 
 type ProjectStatusInput = "draft" | "in_progress" | "pending" | "paused" | "completed";
 
@@ -44,6 +45,44 @@ async function updateLinkedBriefStatus(briefId: unknown, status: "in-progress" |
 export const listProjects = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
+
+  // Designers: lazily ensure every submitted brief has a discoverable draft project.
+  // Wrapped in try/catch so a bad document never blocks the whole response.
+  if (req.user.role === "designer") {
+    try {
+      const submittedBriefs = await BriefModel.find({ status: "submitted" }).lean();
+      if (submittedBriefs.length > 0) {
+        const linked = await ProjectModel.find({
+          briefId: { $in: submittedBriefs.map((b) => b._id) },
+        }).select("briefId").lean();
+        const linkedBriefIds = new Set(linked.map((p) => String(p.briefId)));
+
+        for (const brief of submittedBriefs) {
+          if (linkedBriefIds.has(String(brief._id))) continue;
+          try {
+            const project = await ProjectModel.create({
+              title: brief.title,
+              description: brief.description ?? "",
+              status: "draft",
+              ownerId: brief.clientId,
+              briefId: brief._id,
+            });
+            await MemberModel.create({ projectId: project._id, userId: brief.clientId, memberRole: "lead" });
+            const cols = ["Backlog", "In progress", "Review", "Done"];
+            for (let i = 0; i < cols.length; i++) {
+              await ColumnModel.create({ projectId: project._id, title: cols[i], order: i });
+            }
+            console.log(`[listProjects] Created draft project for brief ${String(brief._id)}: "${brief.title}"`);
+          } catch (e) {
+            console.error(`[listProjects] Could not create draft project for brief ${String(brief._id)}:`, e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("[listProjects] Migration check failed:", e);
+    }
+  }
+
   const ids = await getAccessibleProjectIds(userId, req.user.role);
   const items = await ProjectModel.find({ _id: { $in: ids } })
     .sort({ updatedAt: -1 })
@@ -124,6 +163,9 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (status === "pending" || status === "completed" || status === "in_progress") {
     await updateLinkedBriefStatus(p.briefId, status === "in_progress" ? "in-progress" : status);
   }
+  if (status === "completed") {
+    await recordProjectPayment(p as { _id: unknown; ownerId: unknown }, userId);
+  }
   res.json(projectJSON(p as Parameters<typeof projectJSON>[0]));
 });
 
@@ -166,6 +208,7 @@ export const approveProjectCompletion = asyncHandler(async (req: Request, res: R
   project.status = "completed";
   await project.save();
   await updateLinkedBriefStatus(project.briefId, "completed");
+  await recordProjectPayment(project, userId);
 
   res.json(projectJSON(project.toObject()));
 });

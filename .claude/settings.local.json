@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(cat backend/src/app.ts)",
+      "Bash(cat backend/src/index.ts)",
+      "Bash(cat backend/src/server.ts)",
+      "Bash(cat backend/index.ts)",
+      "Bash(cat backend/server.ts)",
+      "Bash(netstat -ano)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), indent=2\\)\\)\")"
+    ]
+  }
+}

@@ -6,7 +6,8 @@ import { useDashboardNav } from "../../hooks/useDashboardNav";
 import { EmptyState, MetricCard, PageHeader, StatusPill, SurfaceCard } from "../../components/dashboard/DashboardPrimitives";
 import { getInitials } from "../../utils/format";
 
-function relationshipTier(projectCount: number) {
+function relationshipTier(projectCount: number, pendingSubmissionCount = 0) {
+  if (pendingSubmissionCount > 0) return "Pending";
   if (projectCount >= 8) return "Strategic";
   if (projectCount >= 3) return "Growth";
   if (projectCount > 0) return "Active";
@@ -18,7 +19,7 @@ export function ClientsDirectoryPage() {
   const [rows, setRows] = useState<ClientDirectoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "active" | "new">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "active" | "new">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -45,13 +46,16 @@ export function ClientsDirectoryPage() {
       const matchesTerm = !term || `${row.name} ${row.email}`.toLowerCase().includes(term);
       const matchesFilter =
         filter === "all" ||
+        (filter === "pending" && (row.pendingSubmissionCount ?? 0) > 0) ||
         (filter === "active" && row.projectCount > 0) ||
-        (filter === "new" && row.projectCount === 0);
+        (filter === "new" && row.projectCount === 0 && (row.pendingSubmissionCount ?? 0) === 0);
       return matchesTerm && matchesFilter;
     });
   }, [filter, query, rows]);
 
   const activeClients = rows.filter((row) => row.projectCount > 0).length;
+  const pendingClients = rows.filter((row) => (row.pendingSubmissionCount ?? 0) > 0).length;
+  const pendingSubmissions = rows.reduce((sum, row) => sum + (row.pendingSubmissionCount ?? 0), 0);
   const totalProjects = rows.reduce((sum, row) => sum + row.projectCount, 0);
 
   return (
@@ -71,8 +75,9 @@ export function ClientsDirectoryPage() {
         }
       />
 
-      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total clients" value={rows.length} icon="person" helper="Accounts on the platform" />
+        <MetricCard label="Pending" value={pendingSubmissions} icon="pending_actions" helper={`${pendingClients} clients waiting`} tone="tertiary" />
         <MetricCard label="Active clients" value={activeClients} icon="verified" helper="With at least one project" tone="secondary" />
         <MetricCard label="Total projects" value={totalProjects} icon="folder_open" helper="Owned by clients" tone="tertiary" />
       </div>
@@ -81,6 +86,7 @@ export function ClientsDirectoryPage() {
         <div className="flex flex-wrap gap-2">
           {[
             { id: "all" as const, label: "All clients" },
+            { id: "pending" as const, label: "Pending" },
             { id: "active" as const, label: "Active" },
             { id: "new" as const, label: "New" },
           ].map((item) => (
@@ -138,30 +144,39 @@ export function ClientsDirectoryPage() {
                       <p className="truncate text-body-sm text-on-surface-variant">{row.email}</p>
                     </div>
                   </div>
-                  <StatusPill tone={row.projectCount > 0 ? "secondary" : "neutral"}>
-                    {relationshipTier(row.projectCount)}
+                  <StatusPill tone={(row.pendingSubmissionCount ?? 0) > 0 ? "tertiary" : row.projectCount > 0 ? "secondary" : "neutral"}>
+                    {relationshipTier(row.projectCount, row.pendingSubmissionCount)}
                   </StatusPill>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 rounded-lg bg-surface-container-low p-4">
+                <div className="grid grid-cols-3 gap-4 rounded-lg bg-surface-container-low p-4">
+                  <div>
+                    <p className="text-label-md font-bold text-on-surface-variant">Pending</p>
+                    <p className="mt-1 text-headline-md font-bold text-tertiary">{row.pendingSubmissionCount ?? 0}</p>
+                  </div>
                   <div>
                     <p className="text-label-md font-bold text-on-surface-variant">Total projects</p>
                     <p className="mt-1 text-headline-md font-bold text-on-surface">{row.projectCount}</p>
                   </div>
                   <div>
                     <p className="text-label-md font-bold text-on-surface-variant">Health</p>
-                    <p className="mt-1 text-headline-md font-bold text-secondary">
-                      {row.projectCount > 0 ? "Good" : "New"}
+                    <p className={`mt-1 text-headline-md font-bold ${(row.pendingSubmissionCount ?? 0) > 0 ? "text-tertiary" : "text-secondary"}`}>
+                      {(row.pendingSubmissionCount ?? 0) > 0 ? "Pending" : row.projectCount > 0 ? "Good" : "New"}
                     </p>
                   </div>
                 </div>
+                {row.latestSubmissionTitle && (
+                  <p className="mt-4 line-clamp-1 text-body-sm text-on-surface-variant">
+                    Waiting request: <span className="font-semibold text-on-surface">{row.latestSubmissionTitle}</span>
+                  </p>
+                )}
               </div>
               <div className="border-t border-outline-variant px-5 py-3">
                 <Link
-                  to={`${base}/projects`}
+                  to={row.latestSubmissionId ? `${base}/briefs/${row.latestSubmissionId}` : `${base}/projects`}
                   className="inline-flex items-center gap-1 text-label-md font-bold text-primary no-underline hover:underline"
                 >
-                  View projects
+                  {row.latestSubmissionId ? "Open pending request" : "View projects"}
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </Link>
               </div>

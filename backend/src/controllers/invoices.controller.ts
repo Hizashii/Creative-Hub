@@ -7,6 +7,7 @@ import { ProjectModel } from "../models/projects.models";
 import { parseObjectId } from "../utils/mongoose";
 import { parseRequestObjectId } from "../utils/routeParams";
 import { getAccessibleProjectIds } from "../services/accessibleProjects";
+import { ensurePaidInvoicesForProjects } from "../services/projectPayment";
 
 function invoiceJSON(inv: {
   _id: unknown;
@@ -50,19 +51,27 @@ export const listInvoices = asyncHandler(async (req: Request, res: Response) => 
   if (!req.user) throw new ApiError(401, "Not authenticated");
   const userId = parseObjectId(req.user.id, "user id");
   let filter: Record<string, unknown> = {};
+  let paymentProjectIds: Types.ObjectId[] | undefined;
   if (req.user.role === "admin") {
     filter = {};
   } else if (req.user.role === "designer") {
     const pids = await getAccessibleProjectIds(userId, req.user.role);
+    paymentProjectIds = pids;
     filter = {
       $or: [{ createdById: userId }, { projectId: { $in: pids } }],
     };
   } else {
     const ownedProjectIds = await ProjectModel.find({ ownerId: userId }).distinct("_id");
+    paymentProjectIds = ownedProjectIds;
     filter = {
       $or: [{ clientUserId: userId }, { projectId: { $in: ownedProjectIds } }],
     };
   }
+
+  const completedProjectFilter: Record<string, unknown> = { status: "completed" };
+  if (paymentProjectIds) completedProjectFilter._id = { $in: paymentProjectIds };
+  const completedProjects = await ProjectModel.find(completedProjectFilter).select("ownerId").lean();
+  await ensurePaidInvoicesForProjects(completedProjects as Array<{ _id: unknown; ownerId: unknown }>);
 
   const rows = await InvoiceModel.find(filter).sort({ createdAt: -1 }).limit(200).lean();
   const projectIds = [...new Set(rows.map((r) => (r.projectId ? String(r.projectId) : null)).filter(Boolean))] as string[];

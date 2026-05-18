@@ -51,12 +51,12 @@ export function BriefsBrowsePage() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         eyebrow="Requirements"
-        title={area === "client" ? "Your requirements" : area === "designer" ? "Assigned requirements" : "Requirements queue"}
+        title={area === "client" ? "Your requirements" : area === "designer" ? "Requirements queue" : "Requirements queue"}
         description={
           area === "client"
             ? "Track submitted creative requests from waiting queue through preview and delivery."
             : area === "designer"
-              ? "View requirements connected to projects where you have been added as a team member."
+              ? "Pick up new client submissions and track requirements connected to your active projects."
               : "Review submitted client requirements and assign them to project workspaces."
         }
         actions={
@@ -104,7 +104,7 @@ export function BriefsBrowsePage() {
             area === "client"
               ? "Create a new requirement to brief a professional and start the project flow."
               : area === "designer"
-                ? "You only see requirements from projects where you have been invited or assigned."
+                ? "There are no client submissions or assigned requirements matching this filter."
                 : "There are no matching client requirements in the queue."
           }
           action={

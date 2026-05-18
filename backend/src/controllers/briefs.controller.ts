@@ -33,6 +33,7 @@ type BriefLean = {
 type UpdateBriefInput = z.infer<typeof updateBriefBody>;
 
 function briefToJSON(b: BriefLean) {
+  const deadline = b.deadline instanceof Date ? b.deadline : (b.deadline ? new Date(b.deadline as unknown as string) : null);
   return {
     id: String(b._id),
     clientId: String(b.clientId),
@@ -42,7 +43,7 @@ function briefToJSON(b: BriefLean) {
     description: b.description,
     targetAudience: b.targetAudience,
     stylePreference: b.stylePreference,
-    deadline: b.deadline.toISOString(),
+    deadline: deadline?.toISOString() ?? new Date().toISOString(),
     budget: b.budget ?? undefined,
     references: b.references ?? [],
     status: b.status,
@@ -73,15 +74,17 @@ async function getAccessibleBriefIds(userId: Types.ObjectId, role: string) {
 
 export const listBriefs = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "Not authenticated");
+  console.log(`[listBriefs] role=${req.user.role} id=${req.user.id}`);
   let q: Record<string, unknown> = {};
   if (req.user.role === "client") {
     q = { clientId: new Types.ObjectId(req.user.id) };
   }
   if (req.user.role === "designer") {
     const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), req.user.role);
-    q = { _id: { $in: briefIds } };
+    q = { $or: [{ status: "submitted" }, { _id: { $in: briefIds } }] };
   }
   const items = await BriefModel.find(q).sort({ createdAt: -1 }).lean();
+  console.log(`[listBriefs] returning ${items.length} brief(s), statuses:`, items.map(b => b.status));
   res.json(items.map((row: unknown) => briefToJSON(toBriefLean(row))));
 });
 
@@ -95,7 +98,7 @@ export const getBrief = asyncHandler(async (req: Request, res: Response) => {
   }
   if (req.user.role === "designer") {
     const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), req.user.role);
-    if (!briefIds.some((briefId) => briefId.equals(id))) throw new ApiError(403, "Forbidden");
+    if (b.status !== "submitted" && !briefIds.some((briefId) => briefId.equals(id))) throw new ApiError(403, "Forbidden");
   }
   res.json(briefToJSON(toBriefLean(b)));
 });
@@ -116,8 +119,10 @@ export const createBrief = asyncHandler(async (req: Request, res: Response) => {
     references?: string[];
   };
 
+  const ownerId = new Types.ObjectId(req.user.id);
+
   const brief = await BriefModel.create({
-    clientId: new Types.ObjectId(req.user.id),
+    clientId: ownerId,
     title: body.title,
     companyName: body.companyName,
     designType: body.designType,
@@ -129,6 +134,26 @@ export const createBrief = asyncHandler(async (req: Request, res: Response) => {
     references: body.references ?? [],
     status: "submitted",
   });
+
+  // Create a draft project so designers can see and pick it up.
+  // Wrapped in try/catch — if this fails for any reason, the brief is still saved.
+  try {
+    const project = await ProjectModel.create({
+      title: brief.title,
+      description: brief.description ?? "",
+      status: "draft",
+      ownerId,
+      briefId: brief._id,
+    });
+    await MemberModel.create({ projectId: project._id, userId: ownerId, memberRole: "lead" });
+    const defaultColumns = ["Backlog", "In progress", "Review", "Done"];
+    for (let i = 0; i < defaultColumns.length; i++) {
+      await ColumnModel.create({ projectId: project._id, title: defaultColumns[i], order: i });
+    }
+    console.log(`[createBrief] Draft project created for brief "${brief.title}"`);
+  } catch (e) {
+    console.error("[createBrief] Could not create draft project (brief still saved):", e);
+  }
 
   res.status(201).json(briefToJSON(toBriefLean(brief.toObject())));
 });
@@ -197,32 +222,9 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
 
   const brief = await BriefModel.findById(id);
   if (!brief) throw new ApiError(404, "Brief not found");
-  if (currentRole === "designer") {
-    const briefIds = await getAccessibleBriefIds(new Types.ObjectId(req.user.id), currentRole);
-    if (!briefIds.some((briefId) => briefId.equals(id))) throw new ApiError(403, "Forbidden");
-  }
   if (brief.status !== "submitted") {
     throw new ApiError(400, "Only submitted briefs can be accepted");
   }
-
-  const existingProject = await ProjectModel.findOne({ briefId: brief._id }).lean();
-  if (existingProject) throw new ApiError(400, "Brief already has a project");
-
-  const ownerId = brief.clientId as Types.ObjectId;
-
-  const project = await ProjectModel.create({
-    title: brief.title,
-    description: brief.description,
-    status: "in_progress",
-    ownerId,
-    briefId: brief._id,
-  });
-
-  await MemberModel.create({
-    projectId: project._id,
-    userId: ownerId,
-    memberRole: "lead",
-  });
 
   const assignedDesignerId =
     currentRole === "admin" && designerUserId
@@ -233,21 +235,35 @@ export const acceptBrief = asyncHandler(async (req: Request, res: Response) => {
         ? parseObjectId(designerUserId, "designer id")
         : new Types.ObjectId(req.user.id);
 
-  if (assignedDesignerId) {
-    await MemberModel.create({
-      projectId: project._id,
-      userId: assignedDesignerId,
-      memberRole: "member",
+  const ownerId = brief.clientId as Types.ObjectId;
+
+  // If a draft project was auto-created on brief submission, reuse it.
+  let project = await ProjectModel.findOne({ briefId: brief._id });
+
+  if (project) {
+    project.status = "in_progress";
+    await project.save();
+  } else {
+    // Fallback: brief was submitted before auto-project creation — create the project now.
+    project = await ProjectModel.create({
+      title: brief.title,
+      description: brief.description,
+      status: "in_progress",
+      ownerId,
+      briefId: brief._id,
     });
+    await MemberModel.create({ projectId: project._id, userId: ownerId, memberRole: "lead" });
+    const defaultColumns = ["Backlog", "In progress", "Review", "Done"];
+    for (let i = 0; i < defaultColumns.length; i++) {
+      await ColumnModel.create({ projectId: project._id, title: defaultColumns[i], order: i });
+    }
   }
 
-  const defaultColumns = ["Backlog", "In progress", "Review", "Done"];
-  for (let i = 0; i < defaultColumns.length; i++) {
-    await ColumnModel.create({
-      projectId: project._id,
-      title: defaultColumns[i],
-      order: i,
-    });
+  if (assignedDesignerId) {
+    const alreadyMember = await MemberModel.findOne({ projectId: project._id, userId: assignedDesignerId });
+    if (!alreadyMember) {
+      await MemberModel.create({ projectId: project._id, userId: assignedDesignerId, memberRole: "member" });
+    }
   }
 
   brief.status = "in-progress";

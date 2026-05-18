@@ -22,6 +22,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
     const message = body?.error?.message ?? res.statusText;
+    console.error(`[API ${res.status}] ${options.method ?? "GET"} ${path}:`, message);
     throw new ApiRequestError(res.status, message);
   }
   if (res.status === 204) return undefined as T;

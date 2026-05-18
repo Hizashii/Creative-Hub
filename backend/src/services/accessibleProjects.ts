@@ -11,6 +11,16 @@ export async function getAccessibleProjectIds(
   }
   const owned = await ProjectModel.find({ ownerId: userId }).distinct("_id");
   const memberOf = await MemberModel.find({ userId }).distinct("projectId");
-  const set = new Set([...owned.map(String), ...memberOf.map(String)]);
+
+  // Designers see ALL draft projects so they can discover and pick up new client work.
+  const openForPickup = role === "designer"
+    ? await ProjectModel.find({ status: "draft" }).distinct("_id")
+    : [];
+
+  const set = new Set([
+    ...owned.map(String),
+    ...memberOf.map(String),
+    ...openForPickup.map(String),
+  ]);
   return [...set].map((id) => new Types.ObjectId(id));
 }

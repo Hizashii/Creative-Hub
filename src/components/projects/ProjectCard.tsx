@@ -6,7 +6,7 @@ const STATUS = {
   pending: { cls: "bg-tertiary-fixed text-on-tertiary-fixed", label: "Pending" },
   paused: { cls: "bg-tertiary-fixed text-on-tertiary-fixed", label: "Paused" },
   completed: { cls: "bg-secondary-container text-on-secondary-container", label: "Completed" },
-  draft: { cls: "bg-surface-variant text-on-surface-variant", label: "Draft" },
+  draft: { cls: "bg-tertiary-fixed text-tertiary font-bold", label: "Available" },
 } satisfies Record<string, ProjectStatusDisplayConfig>;
 
 const PROGRESS: Record<string, number> = {
