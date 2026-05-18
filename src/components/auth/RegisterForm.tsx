@@ -193,7 +193,7 @@ export function RegisterForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="••••••••"
                   className="block w-full pl-11 pr-4 h-[44px] bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors shadow-sm"
                 />
               </div>
@@ -208,7 +208,7 @@ export function RegisterForm() {
                 disabled={pending}
                 className="w-full flex justify-center items-center gap-2 bg-primary-container text-on-primary h-[48px] rounded-lg text-base font-semibold transition-all hover:bg-primary hover:shadow-lg active:scale-[0.98] disabled:opacity-55"
               >
-                {pending ? "Creatingâ€¦" : "Create Account"}
+                {pending ? "Creating…" : "Create Account"}
                 {!pending && (
                   <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                 )}
