@@ -8,6 +8,7 @@
     "dev:backend": "tsx backend/src/server.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "tsx --test tests/**/*.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
