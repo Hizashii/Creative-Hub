@@ -31,7 +31,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex bg-surface text-on-surface antialiased">
+    <div className="min-h-screen flex bg-surface text-on-surface antialiased max-w-[1920px] mx-auto w-full">
       {/* Left: Form */}
       <main className="w-full lg:w-1/2 flex flex-col justify-center px-6 py-12 md:px-12 lg:px-20 bg-surface-container-lowest relative">
         <div className="absolute left-6 top-8 flex items-center gap-3 md:left-12 lg:left-20">
