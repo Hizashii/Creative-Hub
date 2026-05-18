@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { ClientPaymentMethod, ClientPaymentOption, ClientPaymentState } from "../../types/clientWorkspace";
 import type { Asset, ProjectMember } from "../../types/domain";
 import type { ClientAssetsPanelProps, ClientProjectWorkspaceViewProps } from "../../interfaces/clientWorkspace.interfaces";
 import { buildProjectProgressSteps } from "../../utils/clientProgress";
@@ -21,21 +20,18 @@ function isImageAsset(asset: Asset) {
   return asset.url.startsWith("data:image") || /\.(avif|gif|jpe?g|png|svg|webp)(\?|#|$)/i.test(asset.url);
 }
 
-const paymentOptions: ClientPaymentOption[] = [
-  { id: "card", label: "Card", detail: "Visa, Mastercard, or debit card", icon: "credit_card" },
-  { id: "wallet", label: "Digital wallet", detail: "Fast checkout with saved wallet", icon: "account_balance_wallet" },
-  { id: "bank", label: "Bank transfer", detail: "Mock invoice payment", icon: "account_balance" },
-];
-
 function ClientAssetsPanel({
   assets,
+  project,
   canApprovePreview,
   canRequestChanges,
   approvalPending,
+  declinePending,
   canDownload,
   changesRequested,
   onApprovePreview,
   onRequestChanges,
+  onDeclinePrice,
 }: ClientAssetsPanelProps) {
   const latest = assets[0];
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
@@ -145,27 +141,66 @@ function ClientAssetsPanel({
                 </div>
               ) : (
                 <>
-                  <p className="mb-3 text-label-lg font-bold text-on-surface">Ready to review?</p>
+                  {/* Price row — always visible */}
+                  <div className="mb-4 flex items-center justify-between gap-4 rounded-lg border border-outline-variant bg-surface-container-lowest px-4 py-3">
+                    <div>
+                      <p className="text-label-sm font-bold uppercase tracking-[0.08em] text-on-surface-variant">
+                        Invoice amount
+                      </p>
+                      {project.price != null ? (
+                        <p className="mt-0.5 text-[26px] font-bold leading-none text-on-surface">
+                          {formatCurrency(project.price)}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-body-sm text-on-surface-variant italic">
+                          No price quoted yet — ask your designer to set one.
+                        </p>
+                      )}
+                    </div>
+                    <span className="material-symbols-outlined text-[28px] text-primary">receipt_long</span>
+                  </div>
+
+                  <p className="mb-4 text-body-sm text-on-surface-variant">
+                    {project.price != null
+                      ? "Accept to confirm the work and automatically issue the invoice. Decline to negotiate with your designer."
+                      : "You can accept the work without a price, or request changes first."}
+                  </p>
+
                   <div className="flex flex-col gap-3 sm:flex-row">
-                    {canRequestChanges && (
+                    {canRequestChanges && project.price != null && (
+                      <button
+                        type="button"
+                        disabled={declinePending || approvalPending}
+                        onClick={() => void onDeclinePrice().catch(() => undefined)}
+                        className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-tertiary-fixed bg-surface-container-lowest px-4 text-label-md font-bold text-tertiary transition-colors hover:bg-tertiary-fixed disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">thumb_down</span>
+                        {declinePending ? "Declining…" : "Decline price"}
+                      </button>
+                    )}
+                    {canRequestChanges && project.price == null && (
                       <button
                         type="button"
                         onClick={() => void onRequestChanges().catch(() => undefined)}
                         className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-tertiary-fixed bg-surface-container-lowest px-4 text-label-md font-bold text-tertiary transition-colors hover:bg-tertiary-fixed"
                       >
                         <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                        Requested changes
+                        Request changes
                       </button>
                     )}
                     {canApprovePreview && (
                       <button
                         type="button"
-                        disabled={approvalPending}
+                        disabled={approvalPending || declinePending}
                         onClick={onApprovePreview}
                         className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <span className="material-symbols-outlined text-[18px]">favorite</span>
-                        This is amazing, I love it
+                        <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                        {approvalPending
+                          ? "Confirming…"
+                          : project.price != null
+                            ? `Accept & confirm ${formatCurrency(project.price)}`
+                            : "Accept work"}
                       </button>
                     )}
                   </div>
@@ -191,34 +226,24 @@ export function ClientProjectWorkspaceView({
   canApprovePreview,
   canRequestChanges,
   approvalPending,
+  declinePending,
   changesRequested,
   onMessageChange,
   onSendMessage,
   onApprovePreview,
   onRequestChanges,
+  onDeclinePrice,
 }: ClientProjectWorkspaceViewProps) {
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<ClientPaymentMethod>("card");
-  const [paymentState, setPaymentState] = useState<ClientPaymentState>("idle");
+  const [approved, setApproved] = useState(false);
   const designerAssets = assets
     .filter((asset) => isDesignerAsset(asset, members))
     .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
   const canDownload = project.status === "completed";
-  const deliveryPrice = project.price ?? 0;
   const steps = buildProjectProgressSteps(project, designerAssets.length > 0, changesRequested);
 
-  async function payInvoiceAndApprove() {
-    try {
-      await onApprovePreview();
-      setPaymentState("paid");
-    } catch {
-      // Parent view surfaces the failure message.
-    }
-  }
-
-  function openInvoice() {
-    setPaymentState("sent");
-    setInvoiceOpen(true);
+  async function handleApprove() {
+    await onApprovePreview();
+    setApproved(true);
   }
 
   return (
@@ -243,18 +268,36 @@ export function ClientProjectWorkspaceView({
 
       {error && <div className="mb-4 rounded-lg bg-error-container p-3 text-body-sm text-on-error-container">{error}</div>}
 
+      {(approved || project.status === "completed") && project.price != null && (
+        <div className="mb-6 overflow-hidden rounded-xl border border-secondary-container bg-secondary-container/60">
+          <div className="flex items-start gap-4 p-5">
+            <span className="material-symbols-outlined mt-0.5 text-[24px] text-on-secondary-container">receipt_long</span>
+            <div className="flex-1">
+              <p className="text-label-lg font-bold text-on-secondary-container">Invoice issued</p>
+              <p className="mt-1 text-body-sm text-on-secondary-container/80">
+                An invoice for <strong>{formatCurrency(project.price)}</strong> has been recorded for this project.
+              </p>
+            </div>
+            <p className="text-[22px] font-bold text-on-secondary-container">{formatCurrency(project.price)}</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
           <ClientProgressPipeline steps={steps} />
           <ClientAssetsPanel
             assets={designerAssets}
+            project={project}
             canApprovePreview={canApprovePreview}
             canRequestChanges={canRequestChanges}
             approvalPending={approvalPending}
+            declinePending={declinePending}
             canDownload={canDownload}
             changesRequested={changesRequested}
-            onApprovePreview={openInvoice}
+            onApprovePreview={() => void handleApprove()}
             onRequestChanges={onRequestChanges}
+            onDeclinePrice={onDeclinePrice}
           />
         </div>
 
@@ -267,97 +310,6 @@ export function ClientProjectWorkspaceView({
           onSend={onSendMessage}
         />
       </div>
-
-      {invoiceOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-inverse-surface/50 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-2xl">
-            {paymentState === "paid" ? (
-              <div className="p-6 text-center">
-                <span className="material-symbols-outlined mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary-container text-[30px] text-on-secondary-container">
-                  verified
-                </span>
-                <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Payment complete</p>
-                <h2 className="mt-2 text-headline-md font-semibold text-on-surface">It's all paid up!</h2>
-                <p className="mx-auto mt-2 max-w-sm text-body-sm text-on-surface-variant">
-                  The invoice is paid, review is complete, and every project file is now unlocked for download.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setInvoiceOpen(false)}
-                  className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90"
-                >
-                  <span className="material-symbols-outlined text-[18px]">download</span>
-                  View downloads
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="border-b border-outline-variant px-6 py-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-label-md font-bold uppercase tracking-[0.08em] text-primary">Invoice sent</p>
-                      <h2 className="mt-1 text-headline-md font-semibold text-on-surface">Final approval invoice</h2>
-                      <p className="mt-1 text-body-sm text-on-surface-variant">
-                        {deliveryPrice > 0
-                          ? `Pay ${formatCurrency(deliveryPrice)} to complete review and unlock every file.`
-                          : "Pay to complete review and unlock every file."}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setInvoiceOpen(false)}
-                      className="rounded-full p-2 text-on-surface-variant hover:bg-surface-container-high"
-                      aria-label="Close invoice"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3 p-6">
-                  {paymentOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(option.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-colors ${
-                        paymentMethod === option.id
-                          ? "border-primary bg-primary-container text-on-primary-container"
-                          : "border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container-low"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[24px]">{option.icon}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-bold">{option.label}</span>
-                        <span className="block text-label-sm opacity-80">{option.detail}</span>
-                      </span>
-                      <span className="material-symbols-outlined text-[20px]">
-                        {paymentMethod === option.id ? "radio_button_checked" : "radio_button_unchecked"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between gap-4 border-t border-outline-variant bg-surface-container-low px-6 py-5">
-                  <div>
-                    <p className="text-label-sm font-bold uppercase tracking-[0.08em] text-on-surface-variant">Due now</p>
-                    <p className="text-headline-md font-bold text-on-surface">{formatCurrency(deliveryPrice)}</p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={approvalPending}
-                    onClick={() => void payInvoiceAndApprove()}
-                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-label-md font-bold text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">lock_open</span>
-                    {approvalPending ? "Processing..." : `Pay with ${paymentOptions.find((option) => option.id === paymentMethod)?.label ?? "selected method"}`}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

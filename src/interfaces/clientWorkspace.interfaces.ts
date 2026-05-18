@@ -9,13 +9,16 @@ export interface ClientProgressPipelineProps {
 
 export interface ClientAssetsPanelProps {
   assets: Asset[];
+  project: Project;
   canApprovePreview: boolean;
   canRequestChanges: boolean;
   approvalPending: boolean;
+  declinePending: boolean;
   canDownload: boolean;
   changesRequested: boolean;
   onApprovePreview: () => void;
   onRequestChanges: () => Promise<void>;
+  onDeclinePrice: () => Promise<void>;
 }
 
 export interface ClientProjectWorkspaceViewProps {
@@ -30,11 +33,13 @@ export interface ClientProjectWorkspaceViewProps {
   canApprovePreview: boolean;
   canRequestChanges: boolean;
   approvalPending: boolean;
+  declinePending: boolean;
   changesRequested: boolean;
   onMessageChange: (value: string) => void;
   onSendMessage: (event: FormEvent<HTMLFormElement>) => void;
   onApprovePreview: () => Promise<void>;
   onRequestChanges: () => Promise<void>;
+  onDeclinePrice: () => Promise<void>;
 }
 
 export interface ClientBriefProgressViewProps {

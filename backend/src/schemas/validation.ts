@@ -44,7 +44,9 @@ export const createProjectBody = z.object({
   status: z.enum(["draft", "in_progress", "pending", "paused", "completed"]).optional(),
 });
 
-export const patchProjectBody = createProjectBody.partial();
+export const patchProjectBody = createProjectBody.partial().extend({
+  price: z.number().nonnegative().optional(),
+});
 
 export const createColumnBody = z.object({
   title: z.string().min(1),

@@ -68,6 +68,7 @@ export function ProjectWorkspacePage() {
   const [approvalPending, setApprovalPending] = useState(false);
   const [pickUpPending, setPickUpPending] = useState(false);
   const [priceUpdatePending, setPriceUpdatePending] = useState(false);
+  const [declinePending, setDeclinePending] = useState(false);
   const [changesRequested, setChangesRequested] = useState(false);
 
   const load = useCallback(async () => {
@@ -210,6 +211,30 @@ export function ProjectWorkspacePage() {
     }
   }
 
+  async function declinePrice() {
+    if (!projectId) return;
+    setError(null);
+    setDeclinePending(true);
+    try {
+      const updated = await api<Project>(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "in_progress" }),
+      });
+      await api(`/projects/${projectId}/feedback`, {
+        method: "POST",
+        body: JSON.stringify({ message: "Price declined." }),
+      });
+      setProject(updated);
+      setChangesRequested(false);
+      setFeedback(await api<FeedbackMessage[]>(`/projects/${projectId}/feedback`));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : "Could not decline price");
+      throw err;
+    } finally {
+      setDeclinePending(false);
+    }
+  }
+
   async function pickUp() {
     if (!project?.briefId) return;
     setError(null);
@@ -304,11 +329,13 @@ export function ProjectWorkspacePage() {
         canApprovePreview={canApprovePreview}
         canRequestChanges={canRequestChanges}
         approvalPending={approvalPending}
+        declinePending={declinePending}
         changesRequested={changesRequested}
         onMessageChange={setMessage}
         onSendMessage={sendMessage}
         onApprovePreview={approveCompletion}
         onRequestChanges={requestChanges}
+        onDeclinePrice={declinePrice}
       />
     );
   }
