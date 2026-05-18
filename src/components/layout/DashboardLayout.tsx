@@ -53,10 +53,8 @@ export function DashboardLayout({ area }: DashboardLayoutProps) {
       <Sidebar role={area} />
       <div className="flex min-h-screen flex-col bg-background md:ml-[280px]">
         <Navbar />
-        <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:px-8 md:pb-10 lg:px-10 2xl:px-16">
-          <div className="mx-auto w-full max-w-[1600px]">
-            <Outlet />
-          </div>
+        <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:px-8 md:pb-10 lg:px-10">
+          <Outlet />
         </main>
         <DashboardFooter />
       </div>
